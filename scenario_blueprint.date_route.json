@@ -6,6 +6,43 @@
   "status": "draft",
   "description": "MVP-karakas besplatnogo scenariya dlya dvoih igrokov v dating-formate.",
   "product_goal": "Pomoch pare bystro pochat znakomstvo, pochuvstvovat vibe drug druga i poluchit temy dlya prodolzheniya obshcheniya.",
+  "generation_architecture": {
+    "engine_required_sections": [
+      "schema_version",
+      "scenario_id",
+      "scenario_type",
+      "status",
+      "session_model",
+      "world_setup",
+      "progression",
+      "question_policy",
+      "branching_policy",
+      "summary_policy",
+      "scene_flow"
+    ],
+    "prompt_required_sections": [
+      "product_goal",
+      "experience_principles",
+      "world_setup",
+      "question_policy",
+      "branching_policy",
+      "summary_policy",
+      "scene_flow[].scene_type",
+      "scene_flow[].purpose",
+      "scene_flow[].ladder_stages",
+      "scene_flow[].psychological_goal",
+      "scene_flow[].allowed_question_families",
+      "scene_flow[].forbidden_question_families",
+      "scene_flow[].question_templates",
+      "scene_flow[].transition_goal"
+    ],
+    "editorial_optional_sections": [
+      "scenario_name",
+      "description",
+      "scene_flow[].title",
+      "future_extensions"
+    ]
+  },
   "experience_principles": [
     "low_cognitive_load",
     "async_answers_sync_reveal",
@@ -97,12 +134,28 @@
       "scene_type": "intro",
       "title": "Start of Route",
       "purpose": "Dat korotkiy kontekst i zapustit marshrut bez dolgogo onboarding.",
+      "ladder_stages": [
+        "Warm-up",
+        "Taste"
+      ],
+      "psychological_goal": "Snyat startovoe napryazhenie, dat pervyy ochen legkiy otvet i myagko perevesti igroka k signalu o vibe i vkuse.",
+      "allowed_question_families": [
+        "very_light_vibe",
+        "start_preference",
+        "atmosphere_and_setting"
+      ],
+      "forbidden_question_families": [
+        "behavioral_habits",
+        "attraction_triggers",
+        "self_analysis"
+      ],
       "question_count_target": 2,
       "entry_text_mode": "generated_from_world_and_tone",
       "question_templates": [
         "Kakoy vibe dlya takogo vechera tebe blizhe?",
         "S chem tebe legche nachat takoe priklyuchenie?"
       ],
+      "transition_goal": "Igroki ponyali mehaniku i gotovy pereyti k bolee soderzhatelnomu vyboru napravleniya.",
       "branch_outcomes": {
         "default_next_scene_id": "scene_02_direction"
       }
@@ -112,6 +165,22 @@
       "scene_type": "direction_choice",
       "title": "Pick a Direction",
       "purpose": "Pochuvstvovat temp i stil predpochteniy na starte marshruta.",
+      "ladder_stages": [
+        "Taste",
+        "Rhythm"
+      ],
+      "psychological_goal": "Perevesti znakomstvo ot obschego vibe k tempu, stilyu dvizheniya i pervomu meaningful sovpadeniyu ili razlichiyu.",
+      "allowed_question_families": [
+        "micro_preferences",
+        "atmosphere_and_setting",
+        "pace_and_energy",
+        "planning_versus_spontaneity"
+      ],
+      "forbidden_question_families": [
+        "care_and_attention",
+        "attraction_triggers",
+        "deep_behavioral_realism"
+      ],
       "question_count_target": 3,
       "entry_text_mode": "generated",
       "question_templates": [
@@ -119,6 +188,7 @@
         "Kuda tebya tyanet v takoy istorii?",
         "Chto iz etogo kazhetsya samym priyatnym startom?"
       ],
+      "transition_goal": "Poluchit signal o stile marshruta i vybrat vetku sovpadenie ili kompromiss.",
       "branch_outcomes": {
         "if_match": "scene_03_venue",
         "if_difference": "scene_03_compromise"
@@ -129,6 +199,22 @@
       "scene_type": "venue_choice",
       "title": "Shared Stop",
       "purpose": "Razvernut sovpadenie v bolee konkretnuyu scenu i dat eshche paru legkih signalov o lichnosti.",
+      "ladder_stages": [
+        "Rhythm",
+        "Behavior"
+      ],
+      "psychological_goal": "Prevratit sovpadenie vo vovlekayuschuyu sovmestnuyu scenu i pokazat kak chelovek vedet sebya v prijatnoy situacii.",
+      "allowed_question_families": [
+        "behavioral_habits",
+        "social_contact_style",
+        "planning_versus_spontaneity",
+        "light_projective_situations"
+      ],
+      "forbidden_question_families": [
+        "deep_vulnerability",
+        "explicit_flirt",
+        "long_personal_stories"
+      ],
       "question_count_target": 4,
       "entry_text_mode": "generated",
       "question_templates": [
@@ -136,6 +222,7 @@
         "Chto luchshe dopolnit etot moment?",
         "Kakaya detal sdelala by eto mesto priyatnee?"
       ],
+      "transition_goal": "Pokazat povedenie vnutri sceny i podgotovit bolee lichnuyu pauzu bez poteri legkosti.",
       "branch_outcomes": {
         "default_next_scene_id": "scene_04_pause"
       }
@@ -145,12 +232,29 @@
       "scene_type": "venue_choice",
       "title": "Third Option",
       "purpose": "Myagko oboyti razlichie cherez neytralnyy ili neozydannyy tretij variant.",
+      "ladder_stages": [
+        "Rhythm",
+        "Behavior"
+      ],
+      "psychological_goal": "Sdelat razlichie igrovym, a ne problemnym, i pokazat gibkost cheloveka v novoy ili kompromissnoy situacii.",
+      "allowed_question_families": [
+        "pace_and_energy",
+        "planning_versus_spontaneity",
+        "behavioral_habits",
+        "light_projective_situations"
+      ],
+      "forbidden_question_families": [
+        "compatibility_test",
+        "difference_as_problem",
+        "explicit_flirt"
+      ],
       "question_count_target": 3,
       "entry_text_mode": "generated",
       "question_templates": [
         "Vy vybrali raznye napravleniya. Chto iz etogo tretiego varianta tebe bolee simpaticno?",
         "Chto moglo by sdelat etu ostanovku tvoey?"
       ],
+      "transition_goal": "Sohranit tempo marshruta i dobavit signal o stile reagirovaniya na kompromiss.",
       "branch_outcomes": {
         "default_next_scene_id": "scene_04_pause"
       }
@@ -160,6 +264,21 @@
       "scene_type": "shared_pause",
       "title": "Pause and Notice",
       "purpose": "Sdelat marshrut chut bolee lichnym, ne uhodya v tyazheluyu refleksiyu.",
+      "ladder_stages": [
+        "Behavior",
+        "Warmth"
+      ],
+      "psychological_goal": "Zamedlit marshrut, smyagchit kontakt i perevesti fokus na teplo, komfort i lichnye detali.",
+      "allowed_question_families": [
+        "social_contact_style",
+        "small_joys",
+        "care_and_attention"
+      ],
+      "forbidden_question_families": [
+        "deep_vulnerability",
+        "past_relationships",
+        "explicit_flirt"
+      ],
       "question_count_target": 4,
       "entry_text_mode": "generated",
       "question_templates": [
@@ -167,6 +286,7 @@
         "Kakaya melkaya veshch zdes mogla by tebya ocharovat?",
         "Chto by ty zdes zametil pervym?"
       ],
+      "transition_goal": "Sformirovat oshchushchenie chelovechnosti i podgotovit myagkiy perehod k lichnomu interesu.",
       "branch_outcomes": {
         "default_next_scene_id": "scene_05_soft_reveal"
       }
@@ -176,6 +296,21 @@
       "scene_type": "soft_reveal",
       "title": "Closer Signal",
       "purpose": "Vyvesti paru na uroven teplogo uznavaniya i sobrat temy dlya prodolzheniya razgovora.",
+      "ladder_stages": [
+        "Warmth",
+        "Attraction"
+      ],
+      "psychological_goal": "Akkuratno perevesti kontakt ot komforta k interesu i podsvetit chto mozhet tseplyat v cheloveke bez nelovkosti.",
+      "allowed_question_families": [
+        "care_and_attention",
+        "attraction_triggers",
+        "projective_situation_questions"
+      ],
+      "forbidden_question_families": [
+        "explicit_like_dislike",
+        "compatibility_test",
+        "sexualized_language"
+      ],
       "question_count_target": 3,
       "entry_text_mode": "generated",
       "question_templates": [
@@ -183,6 +318,7 @@
         "Kakoy znak vnimaniya zdes zapomnilsya by tebe dolshe vsego?",
         "O chem tebe bylo by interesno pogovorit posle etoy tochki?"
       ],
+      "transition_goal": "Sobrat nablyudeniya dlya finalnogo summary i ostavit oshchushchenie lichnogo interesa.",
       "branch_outcomes": {
         "default_next_scene_id": "scene_06_finale"
       }
@@ -192,12 +328,27 @@
       "scene_type": "finale",
       "title": "Route End",
       "purpose": "Zavershit marshrut, sborkoy nabljudeniy i sohranit most v realnoe obshchenie.",
+      "ladder_stages": [
+        "Continuation"
+      ],
+      "psychological_goal": "Zakryt marshrut s oshchushcheniem zavershennosti i pomoch pare estestvenno pereyti v realnoe prodolzhenie obshcheniya.",
+      "allowed_question_families": [
+        "shared_future_continuation",
+        "next_conversation_topics",
+        "gentle_real_world_bridge"
+      ],
+      "forbidden_question_families": [
+        "new_big_reveals",
+        "hard_decision_prompt",
+        "heavy_analysis"
+      ],
       "question_count_target": 2,
       "entry_text_mode": "generated",
       "question_templates": [
         "Chto iz etogo marshruta ty by zabralsya v realnuyu vstrechu?",
         "Kakuyu sleduyushchuyu temu ty by s radostyu prodolzhil uzhe v chate ili pri vstreche?"
       ],
+      "transition_goal": "Ne otkryvat novuyu temu, a vyvesti paru v vneshniy razgovor i summary.",
       "branch_outcomes": {
         "end_scenario": true
       }
