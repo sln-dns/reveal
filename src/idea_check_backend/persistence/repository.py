@@ -26,7 +26,6 @@ from idea_check_backend.persistence.models import (
 )
 from idea_check_backend.shared_types.scenario import ScenarioDraft
 
-
 _UNSET = object()
 
 
@@ -263,6 +262,15 @@ class SqlAlchemyScenarioRuntimeRepository:
             participant_id,
             _to_session_participant_record,
         )
+
+    async def list_session_participants(self, session_id: str) -> list[SessionParticipantRecord]:
+        """Return session participants ordered by pair slot."""
+        statement = (
+            select(SessionParticipant)
+            .where(SessionParticipant.session_id == session_id)
+            .order_by(SessionParticipant.slot.asc(), SessionParticipant.created_at.asc())
+        )
+        return await self._fetch_all(statement, _to_session_participant_record)
 
     async def update_session_participant(
         self,
@@ -549,6 +557,18 @@ class SqlAlchemyScenarioRuntimeRepository:
             await db_session.refresh(entity)
             return _to_question_instance_record(entity)
 
+    async def list_question_instances_for_scene(
+        self,
+        scene_instance_id: str,
+    ) -> list[QuestionInstanceRecord]:
+        """Return question instances for a scene ordered by question position."""
+        statement = (
+            select(QuestionInstance)
+            .where(QuestionInstance.scene_instance_id == scene_instance_id)
+            .order_by(QuestionInstance.position.asc(), QuestionInstance.created_at.asc())
+        )
+        return await self._fetch_all(statement, _to_question_instance_record)
+
     async def save_answer(
         self,
         *,
@@ -579,7 +599,11 @@ class SqlAlchemyScenarioRuntimeRepository:
             select(Answer)
             .join(Answer.question_instance)
             .where(QuestionInstance.scene_instance_id == scene_instance_id)
-            .order_by(QuestionInstance.position.asc(), Answer.submitted_at.asc(), Answer.created_at.asc())
+            .order_by(
+                QuestionInstance.position.asc(),
+                Answer.submitted_at.asc(),
+                Answer.created_at.asc(),
+            )
         )
         return await self._fetch_all(statement, _to_answer_record)
 
