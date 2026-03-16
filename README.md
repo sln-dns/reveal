@@ -23,6 +23,7 @@ Service will be available on `http://127.0.0.1:8000`.
 uv run alembic upgrade head
 uv run ruff check .
 uv run pytest
+uv run idea-check-smoke-generate
 ```
 
 ## LLM configuration
@@ -40,6 +41,29 @@ Supported request formats are selected from the URL path:
 - `/responses` -> `{"model", "input"}`
 - `/chat/completions` -> `{"model", "messages"}`
 - `/completions` -> `{"model", "prompt"}`
+
+## Smoke generation
+
+Manual smoke flow uses the real AI provider from `.env` and is not part of the default test suite.
+
+```bash
+uv run idea-check-smoke-generate
+```
+
+Optional flags:
+
+```bash
+uv run idea-check-smoke-generate --scene-id scene_01_intro
+uv run idea-check-smoke-generate --output-dir artifacts/smoke_generation
+```
+
+Requirements before running:
+
+- `AI_MODEL`
+- `AI_PROVIDER_API_KEY`
+- `AI_PROVIDER_URL`
+
+The command fails fast on missing config, network/provider errors, or any provider response that falls back to stub output. Successful runs save both `result.json` and `result.md` under `artifacts/smoke_generation/...` for review.
 
 ## Structure
 
