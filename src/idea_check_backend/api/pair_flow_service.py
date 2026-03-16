@@ -16,6 +16,10 @@ from idea_check_backend.api.schemas.pair_flow import (
     SubmitAnswerOutcome,
     SubmitAnswerResponse,
 )
+from idea_check_backend.observability.runtime_events import (
+    RuntimeEventLogger,
+    RuntimeEventName,
+)
 from idea_check_backend.persistence.models import ParticipantStatus, SessionStatus
 from idea_check_backend.persistence.repository import (
     ScenarioRunRecord,
@@ -59,19 +63,40 @@ class PairFlowApiService:
         repository: SqlAlchemyScenarioRuntimeRepository,
         runtime_service: PairScenarioRuntimeService,
         blueprint_repository: ScenarioBlueprintRepository,
+        event_logger: RuntimeEventLogger | None = None,
     ) -> None:
         self._repository = repository
         self._runtime_service = runtime_service
         self._blueprints = blueprint_repository
+        self._event_logger = event_logger or RuntimeEventLogger()
 
     async def create_session(self, display_name: str | None = None) -> CreateSessionResponse:
         session = await self._repository.create_session(scenario_key="date_route")
+        self._event_logger.emit(
+            RuntimeEventName.SESSION_CREATED,
+            session_id=session.id,
+            metadata={
+                "scenario_key": session.scenario_key,
+                "session_status": session.status,
+            },
+        )
         participant = await self._repository.add_session_participant(
             session_id=session.id,
             slot=1,
             display_name=display_name,
             status=ParticipantStatus.ACTIVE,
             joined_at=datetime.now(UTC),
+        )
+        self._event_logger.emit(
+            RuntimeEventName.PARTICIPANT_JOINED,
+            session_id=session.id,
+            participant_id=participant.id,
+            participant_slot=participant.slot,
+            metadata={
+                "participant_count": 1,
+                "display_name_present": display_name is not None,
+                "participant_status": participant.status,
+            },
         )
         state = await self.get_current_state(session.id, participant.id)
         identity = self._serialize_participant_identity(participant)
@@ -94,6 +119,17 @@ class PairFlowApiService:
             display_name=display_name,
             status=ParticipantStatus.ACTIVE,
             joined_at=datetime.now(UTC),
+        )
+        self._event_logger.emit(
+            RuntimeEventName.PARTICIPANT_JOINED,
+            session_id=session_id,
+            participant_id=participant.id,
+            participant_slot=participant.slot,
+            metadata={
+                "participant_count": len(participants) + 1,
+                "display_name_present": display_name is not None,
+                "participant_status": participant.status,
+            },
         )
         run_id = session.lifecycle_state.get("run_id")
         if run_id is None:

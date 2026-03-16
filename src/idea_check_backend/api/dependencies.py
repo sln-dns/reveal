@@ -3,6 +3,7 @@ from __future__ import annotations
 from functools import lru_cache
 
 from idea_check_backend.api.pair_flow_service import PairFlowApiService
+from idea_check_backend.observability.runtime_events import RuntimeEventLogger
 from idea_check_backend.persistence.db import make_session_factory
 from idea_check_backend.persistence.repository import SqlAlchemyScenarioRuntimeRepository
 from idea_check_backend.runtime_service import PairScenarioRuntimeService
@@ -20,11 +21,22 @@ def _get_blueprint_repository() -> ScenarioBlueprintRepository:
 
 
 @lru_cache
+def _get_runtime_event_logger() -> RuntimeEventLogger:
+    return RuntimeEventLogger()
+
+
+@lru_cache
 def get_pair_flow_api_service() -> PairFlowApiService:
     repository = _get_runtime_repository()
-    runtime_service = PairScenarioRuntimeService(repository, _get_blueprint_repository())
+    event_logger = _get_runtime_event_logger()
+    runtime_service = PairScenarioRuntimeService(
+        repository,
+        _get_blueprint_repository(),
+        event_logger=event_logger,
+    )
     return PairFlowApiService(
         repository=repository,
         runtime_service=runtime_service,
         blueprint_repository=_get_blueprint_repository(),
+        event_logger=event_logger,
     )

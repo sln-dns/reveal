@@ -46,6 +46,25 @@ uv run uvicorn idea_check_backend.main:app --reload
 
 The API is a thin layer over `PairScenarioRuntimeService`: session creation creates the first participant, second participant join starts the runtime run, `state` returns a frontend-ready current view, and answer submission returns `waiting`, `progressed`, or `completed` outcomes with reveal data when both answers are available.
 
+## Runtime Observability
+
+Pair flow now emits structured runtime events through the standard Python `logging` stack with a JSON formatter. The event catalog and payload schema are documented in [docs/runtime_event_logging.md](/var/folders/42/jpgf43_12bzf43rnsrfg2r800000gn/T/vibe-kanban/worktrees/1155-runtime-event-lo/Idea_check/docs/runtime_event_logging.md).
+
+Current domain events include:
+
+- `session_created`
+- `participant_joined`
+- `scenario_run_started`
+- `scene_activated`
+- `question_delivered`
+- `answer_submitted`
+- `waiting_for_second_answer`
+- `answers_revealed`
+- `scene_completed`
+- `branch_selected`
+- `run_completed`
+- `runtime_error`
+
 ## LLM configuration
 
 Set provider access through env vars:
