@@ -25,6 +25,22 @@ uv run ruff check .
 uv run pytest
 ```
 
+## LLM configuration
+
+Set provider access through env vars:
+
+```bash
+AI_MODEL=gpt-4.1-mini
+AI_PROVIDER_API_KEY=your-provider-key
+AI_PROVIDER_URL=https://api.openai.com/v1/responses
+```
+
+Supported request formats are selected from the URL path:
+
+- `/responses` -> `{"model", "input"}`
+- `/chat/completions` -> `{"model", "messages"}`
+- `/completions` -> `{"model", "prompt"}`
+
 ## Structure
 
 - `src/idea_check_backend/api` - HTTP routes

@@ -4,8 +4,9 @@ import json
 import logging
 from dataclasses import dataclass
 from typing import Callable
-from urllib import error, request
+from urllib.parse import urlparse
 
+import httpx
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from idea_check_backend.llm_service.prompt_builder import ScenePromptBuilder
@@ -81,7 +82,7 @@ class LLMServiceClient:
                 transition_text=parsed_response.transition_text,
                 used_fallback=False,
             )
-        except (ValidationError, ValueError, error.URLError, TimeoutError) as exc:
+        except (ValidationError, ValueError, httpx.HTTPError) as exc:
             validation_error = str(exc)
             generation = self._build_fallback_generation(payload)
             if not raw_response:
@@ -91,6 +92,7 @@ class LLMServiceClient:
                 extra={
                     "scene_id": payload.scene_id,
                     "provider": self._settings.llm_provider,
+                    "provider_url": self._settings.ai_provider_url,
                     "model": self._settings.llm_model,
                     "error": validation_error,
                 },
@@ -110,6 +112,7 @@ class LLMServiceClient:
             extra={
                 "scene_id": payload.scene_id,
                 "provider": log_entry.provider,
+                "provider_url": self._settings.ai_provider_url,
                 "model": log_entry.model,
                 "used_fallback": log_entry.used_fallback,
             },
@@ -119,42 +122,152 @@ class LLMServiceClient:
     def _generate_raw_response(self, prompt: str) -> str:
         if self._transport is not None:
             return self._transport(prompt)
-        if self._settings.llm_provider == "openai" and self._settings.openai_api_key:
-            return self._call_openai(prompt)
+        if self._settings.ai_provider_url:
+            return self._call_provider(prompt)
         return self._build_stub_response(prompt)
 
-    def _call_openai(self, prompt: str) -> str:
-        request_body = json.dumps(
-            {
+    def _call_provider(self, prompt: str) -> str:
+        if not self._settings.ai_provider_url:
+            raise ValueError("AI_PROVIDER_URL is not configured")
+
+        request_body = self._build_provider_request_body(prompt)
+        headers = {"Content-Type": "application/json"}
+        if self._settings.ai_provider_api_key:
+            headers["Authorization"] = f"Bearer {self._settings.ai_provider_api_key}"
+
+        self._logger.info(
+            "llm_provider_request_started",
+            extra={
+                "provider": self._settings.llm_provider,
+                "provider_url": self._settings.ai_provider_url,
                 "model": self._settings.llm_model,
-                "input": prompt,
-            }
-        ).encode("utf-8")
-        http_request = request.Request(
-            self._settings.openai_base_url,
-            data=request_body,
-            headers={
-                "Authorization": f"Bearer {self._settings.openai_api_key}",
-                "Content-Type": "application/json",
             },
-            method="POST",
         )
 
-        with request.urlopen(
-            http_request,
-            timeout=self._settings.llm_timeout_seconds,
-        ) as response:
-            response_payload = json.loads(response.read().decode("utf-8"))
-        return self._extract_openai_output_text(response_payload)
+        try:
+            with httpx.Client(
+                timeout=self._settings.llm_timeout_seconds,
+                trust_env=False,
+            ) as client:
+                response = client.post(
+                    self._settings.ai_provider_url,
+                    json=request_body,
+                    headers=headers,
+                )
+                response.raise_for_status()
+        except httpx.TimeoutException as exc:
+            raise ValueError("LLM provider request timed out") from exc
+        except httpx.HTTPStatusError as exc:
+            response_text = exc.response.text[:500].strip() or "<empty_response_body>"
+            raise ValueError(
+                f"LLM provider returned HTTP {exc.response.status_code}: {response_text}"
+            ) from exc
+        except httpx.RequestError as exc:
+            raise ValueError(f"LLM provider request failed: {exc}") from exc
 
-    def _extract_openai_output_text(self, response_payload: dict) -> str:
-        output = response_payload.get("output", [])
+        try:
+            response_payload = response.json()
+        except json.JSONDecodeError as exc:
+            raise ValueError("LLM provider returned non-JSON response") from exc
+
+        return self._extract_provider_output(response_payload)
+
+    def _build_provider_request_body(self, prompt: str) -> dict[str, object]:
+        parsed_url = urlparse(self._settings.ai_provider_url or "")
+        path = parsed_url.path.rstrip("/")
+
+        if path.endswith("/chat/completions"):
+            return {
+                "model": self._settings.llm_model,
+                "messages": [{"role": "user", "content": prompt}],
+            }
+        if path.endswith("/completions"):
+            return {
+                "model": self._settings.llm_model,
+                "prompt": prompt,
+            }
+        return {
+            "model": self._settings.llm_model,
+            "input": prompt,
+        }
+
+    def _extract_provider_output(self, response_payload: object) -> str:
+        if isinstance(response_payload, str):
+            return response_payload
+        if not isinstance(response_payload, dict):
+            raise ValueError("LLM provider returned an unsupported JSON payload")
+
+        direct_scene_payload = self._extract_scene_payload(response_payload)
+        if direct_scene_payload is not None:
+            return json.dumps(direct_scene_payload)
+
+        for field_name in ("output_text", "text", "response", "generated_text"):
+            field_value = response_payload.get(field_name)
+            if isinstance(field_value, str) and field_value.strip():
+                return field_value
+
+        output_text = self._extract_text_from_output(response_payload.get("output"))
+        if output_text is not None:
+            return output_text
+
+        choices = response_payload.get("choices")
+        if isinstance(choices, list):
+            for choice in choices:
+                if not isinstance(choice, dict):
+                    continue
+                message_text = self._extract_text_from_choice(choice)
+                if message_text is not None:
+                    return message_text
+
+        raise ValueError("LLM provider response did not include scene content")
+
+    def _extract_scene_payload(self, payload: dict[str, object]) -> dict[str, object] | None:
+        expected_keys = {"intro_text", "questions", "transition_text"}
+        if expected_keys.issubset(payload.keys()):
+            return payload
+
+        for field_name in ("data", "result"):
+            nested = payload.get(field_name)
+            if isinstance(nested, dict) and expected_keys.issubset(nested.keys()):
+                return nested
+
+        return None
+
+    def _extract_text_from_output(self, output: object) -> str | None:
+        if not isinstance(output, list):
+            return None
         for item in output:
-            for content in item.get("content", []):
-                text = content.get("text")
-                if text:
+            if not isinstance(item, dict):
+                continue
+            content = item.get("content")
+            if not isinstance(content, list):
+                continue
+            for part in content:
+                if not isinstance(part, dict):
+                    continue
+                text = part.get("text")
+                if isinstance(text, str) and text.strip():
                     return text
-        raise ValueError("OpenAI response did not include text output")
+        return None
+
+    def _extract_text_from_choice(self, choice: dict[str, object]) -> str | None:
+        message = choice.get("message")
+        if not isinstance(message, dict):
+            return None
+
+        content = message.get("content")
+        if isinstance(content, str) and content.strip():
+            return content
+        if not isinstance(content, list):
+            return None
+
+        for part in content:
+            if not isinstance(part, dict):
+                continue
+            text = part.get("text")
+            if isinstance(text, str) and text.strip():
+                return text
+        return None
 
     def _build_stub_response(self, prompt: str) -> str:
         if "scene_01_intro" in prompt:
@@ -197,11 +310,26 @@ class LLMServiceClient:
         raw_response: str,
         question_count_target: int,
     ) -> _SceneGenerationResponse:
-        parsed_json = json.loads(raw_response)
+        parsed_json = self._load_json_payload(raw_response)
         parsed_response = _SceneGenerationResponse.model_validate(parsed_json)
         if len(parsed_response.questions) > min(3, question_count_target):
             raise ValueError("model returned too many questions")
         return parsed_response
+
+    def _load_json_payload(self, raw_response: str) -> object:
+        try:
+            return json.loads(raw_response)
+        except json.JSONDecodeError:
+            stripped_response = raw_response.strip()
+            if stripped_response.startswith("```") and stripped_response.endswith("```"):
+                stripped_response = "\n".join(stripped_response.splitlines()[1:-1]).strip()
+            if stripped_response.startswith("json"):
+                stripped_response = stripped_response[4:].strip()
+            start = stripped_response.find("{")
+            end = stripped_response.rfind("}")
+            if start == -1 or end == -1 or start >= end:
+                raise
+            return json.loads(stripped_response[start : end + 1])
 
     def _build_fallback_generation(self, payload: SceneGenerationPayload) -> SceneGeneration:
         question_count = min(
