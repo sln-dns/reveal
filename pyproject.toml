@@ -5,8 +5,12 @@ description = "Backend skeleton for Idea Check service"
 readme = "README.md"
 requires-python = ">=3.12,<3.15"
 dependencies = [
+    "alembic>=1.14.0,<2.0.0",
+    "aiosqlite>=0.20.0,<1.0.0",
     "fastapi>=0.115.0,<1.0.0",
+    "greenlet>=3.1.1,<4.0.0",
     "pydantic-settings>=2.6.0,<3.0.0",
+    "sqlalchemy>=2.0.36,<3.0.0",
     "uvicorn[standard]>=0.32.0,<1.0.0",
 ]
 

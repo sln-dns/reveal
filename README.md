@@ -20,6 +20,7 @@ Service will be available on `http://127.0.0.1:8000`.
 ## Commands
 
 ```bash
+uv run alembic upgrade head
 uv run ruff check .
 uv run pytest
 ```
@@ -31,3 +32,4 @@ uv run pytest
 - `src/idea_check_backend/llm_service` - LLM integration facade
 - `src/idea_check_backend/persistence` - persistence abstractions
 - `src/idea_check_backend/shared_types` - shared DTOs and settings
+- `docs/mvp_data_model.md` - runtime data model overview for MVP

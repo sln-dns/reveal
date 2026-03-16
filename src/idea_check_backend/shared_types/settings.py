@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     app_host: str = "127.0.0.1"
     app_port: int = 8000
     app_name: str = "Idea Check Backend"
+    database_url: str = "sqlite+aiosqlite:///./idea_check.db"
 
     model_config = SettingsConfigDict(
         env_file=(".env", ".env.local"),
