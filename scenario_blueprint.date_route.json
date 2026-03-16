@@ -1,0 +1,233 @@
+{
+  "schema_version": "0.1",
+  "scenario_id": "date_route_mvp",
+  "scenario_name": "Marshrut Svidaniya",
+  "scenario_type": "date_route",
+  "status": "draft",
+  "description": "MVP-karakas besplatnogo scenariya dlya dvoih igrokov v dating-formate.",
+  "product_goal": "Pomoch pare bystro pochat znakomstvo, pochuvstvovat vibe drug druga i poluchit temy dlya prodolzheniya obshcheniya.",
+  "experience_principles": [
+    "low_cognitive_load",
+    "async_answers_sync_reveal",
+    "short_text_first",
+    "light_playful_tone",
+    "progress_through_scenes"
+  ],
+  "session_model": {
+    "players_count": 2,
+    "mode": "asynchronous",
+    "answer_reveal": "both_answers_required",
+    "pause_resume_allowed": true,
+    "estimated_total_steps": 18,
+    "estimated_scene_count": 5
+  },
+  "world_setup": {
+    "selection_mode": "system_preset_random",
+    "preset_world_ids": [
+      "evening_city",
+      "resort_walk",
+      "mars_colony"
+    ],
+    "tone_mode": "variable_by_run",
+    "allowed_tones": [
+      "playful",
+      "warm_romantic",
+      "light_ironic",
+      "soft_mysterious"
+    ],
+    "realism_mode": "player_inferred"
+  },
+  "progression": {
+    "unit": "scene",
+    "show_progress_to_users": true,
+    "progress_label_template": "Scene {current} of {total}",
+    "interruption_safe": true
+  },
+  "scene_types": [
+    "intro",
+    "direction_choice",
+    "venue_choice",
+    "shared_pause",
+    "soft_reveal",
+    "finale"
+  ],
+  "question_policy": {
+    "default_answer_format": "short_text",
+    "allowed_answer_formats": [
+      "short_text",
+      "single_choice",
+      "hybrid_choice_plus_text"
+    ],
+    "questions_per_scene_min": 2,
+    "questions_per_scene_max": 5,
+    "max_answer_length_chars": 180,
+    "llm_interpretation_during_run": "minimal",
+    "direct_psychological_analysis": false
+  },
+  "branching_policy": {
+    "difference_strategy": "soft_compromise",
+    "match_strategy": "continue_same_direction",
+    "hard_blocking_on_difference": false,
+    "fallback_branch_type": "neutral_third_option",
+    "branching_inputs": [
+      "preference_match",
+      "preference_difference",
+      "energy_level",
+      "pace_signal"
+    ]
+  },
+  "summary_policy": {
+    "generate_summary": true,
+    "summary_per_player": true,
+    "summary_focus": [
+      "other_person_preferences",
+      "other_person_vibe",
+      "conversation_topics_for_real_meeting"
+    ],
+    "summary_tone": "warm_observational",
+    "forbidden_summary_styles": [
+      "clinical_psychology",
+      "compatibility_score_only",
+      "judgmental_language"
+    ]
+  },
+  "scene_flow": [
+    {
+      "scene_id": "scene_01_intro",
+      "scene_type": "intro",
+      "title": "Start of Route",
+      "purpose": "Dat korotkiy kontekst i zapustit marshrut bez dolgogo onboarding.",
+      "question_count_target": 2,
+      "entry_text_mode": "generated_from_world_and_tone",
+      "question_templates": [
+        "Kakoy vibe dlya takogo vechera tebe blizhe?",
+        "S chem tebe legche nachat takoe priklyuchenie?"
+      ],
+      "branch_outcomes": {
+        "default_next_scene_id": "scene_02_direction"
+      }
+    },
+    {
+      "scene_id": "scene_02_direction",
+      "scene_type": "direction_choice",
+      "title": "Pick a Direction",
+      "purpose": "Pochuvstvovat temp i stil predpochteniy na starte marshruta.",
+      "question_count_target": 3,
+      "entry_text_mode": "generated",
+      "question_templates": [
+        "Chto ty vyberesh snachala?",
+        "Kuda tebya tyanet v takoy istorii?",
+        "Chto iz etogo kazhetsya samym priyatnym startom?"
+      ],
+      "branch_outcomes": {
+        "if_match": "scene_03_venue",
+        "if_difference": "scene_03_compromise"
+      }
+    },
+    {
+      "scene_id": "scene_03_venue",
+      "scene_type": "venue_choice",
+      "title": "Shared Stop",
+      "purpose": "Razvernut sovpadenie v bolee konkretnuyu scenu i dat eshche paru legkih signalov o lichnosti.",
+      "question_count_target": 4,
+      "entry_text_mode": "generated",
+      "question_templates": [
+        "Chto ty by sdelal zdes pervym?",
+        "Chto luchshe dopolnit etot moment?",
+        "Kakaya detal sdelala by eto mesto priyatnee?"
+      ],
+      "branch_outcomes": {
+        "default_next_scene_id": "scene_04_pause"
+      }
+    },
+    {
+      "scene_id": "scene_03_compromise",
+      "scene_type": "venue_choice",
+      "title": "Third Option",
+      "purpose": "Myagko oboyti razlichie cherez neytralnyy ili neozydannyy tretij variant.",
+      "question_count_target": 3,
+      "entry_text_mode": "generated",
+      "question_templates": [
+        "Vy vybrali raznye napravleniya. Chto iz etogo tretiego varianta tebe bolee simpaticno?",
+        "Chto moglo by sdelat etu ostanovku tvoey?"
+      ],
+      "branch_outcomes": {
+        "default_next_scene_id": "scene_04_pause"
+      }
+    },
+    {
+      "scene_id": "scene_04_pause",
+      "scene_type": "shared_pause",
+      "title": "Pause and Notice",
+      "purpose": "Sdelat marshrut chut bolee lichnym, ne uhodya v tyazheluyu refleksiyu.",
+      "question_count_target": 4,
+      "entry_text_mode": "generated",
+      "question_templates": [
+        "V takoy moment tebe bolshe nravitsya govorit ili prosto byt ryadom?",
+        "Kakaya melkaya veshch zdes mogla by tebya ocharovat?",
+        "Chto by ty zdes zametil pervym?"
+      ],
+      "branch_outcomes": {
+        "default_next_scene_id": "scene_05_soft_reveal"
+      }
+    },
+    {
+      "scene_id": "scene_05_soft_reveal",
+      "scene_type": "soft_reveal",
+      "title": "Closer Signal",
+      "purpose": "Vyvesti paru na uroven teplogo uznavaniya i sobrat temy dlya prodolzheniya razgovora.",
+      "question_count_target": 3,
+      "entry_text_mode": "generated",
+      "question_templates": [
+        "Chto v cheloveke delaet takoy marshrut osobenno prijatnym?",
+        "Kakoy znak vnimaniya zdes zapomnilsya by tebe dolshe vsego?",
+        "O chem tebe bylo by interesno pogovorit posle etoy tochki?"
+      ],
+      "branch_outcomes": {
+        "default_next_scene_id": "scene_06_finale"
+      }
+    },
+    {
+      "scene_id": "scene_06_finale",
+      "scene_type": "finale",
+      "title": "Route End",
+      "purpose": "Zavershit marshrut, sborkoy nabljudeniy i sohranit most v realnoe obshchenie.",
+      "question_count_target": 2,
+      "entry_text_mode": "generated",
+      "question_templates": [
+        "Chto iz etogo marshruta ty by zabralsya v realnuyu vstrechu?",
+        "Kakuyu sleduyushchuyu temu ty by s radostyu prodolzhil uzhe v chate ili pri vstreche?"
+      ],
+      "branch_outcomes": {
+        "end_scenario": true
+      }
+    }
+  ],
+  "llm_generation_contract": {
+    "input_sections": [
+      "world_setup",
+      "selected_tone",
+      "scene_definition",
+      "previous_answers_summary",
+      "branching_context"
+    ],
+    "output_sections": [
+      "scene_intro_text",
+      "question_texts",
+      "transition_text"
+    ],
+    "must_preserve": [
+      "scene_purpose",
+      "answer_format_limits",
+      "branching_policy",
+      "tone_constraints"
+    ]
+  },
+  "future_extensions": [
+    "interactive_world_selection",
+    "more_world_presets",
+    "more_branch_types",
+    "mid_run_joint_decisions",
+    "adaptive_summary_quality"
+  ]
+}
