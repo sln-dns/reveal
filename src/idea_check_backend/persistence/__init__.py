@@ -15,15 +15,25 @@ from idea_check_backend.persistence.models import (
     SessionParticipant,
     Summary,
 )
+from idea_check_backend.persistence.repository import (
+    InMemoryScenarioDraftRepository,
+    ScenarioDraftRepository,
+    ScenarioRepository,
+    SqlAlchemyScenarioRuntimeRepository,
+)
 
 __all__ = [
     "Answer",
     "Base",
+    "InMemoryScenarioDraftRepository",
     "QuestionInstance",
+    "ScenarioDraftRepository",
+    "ScenarioRepository",
     "ScenarioRun",
     "SceneInstance",
     "Session",
     "SessionParticipant",
+    "SqlAlchemyScenarioRuntimeRepository",
     "Summary",
     "get_db_session",
     "make_async_engine",
