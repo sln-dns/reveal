@@ -63,6 +63,7 @@ class RuntimeState:
 @dataclass(slots=True, frozen=True)
 class SubmitAnswerResult:
     state: RuntimeState
+    revealed_scene: RuntimeSceneState | None
     reveal_triggered: bool
     run_completed: bool
     advanced_to_next_scene: bool
@@ -208,6 +209,7 @@ class PairScenarioRuntimeService:
             state = await self.get_current_state(run_id)
             return SubmitAnswerResult(
                 state=state,
+                revealed_scene=None,
                 reveal_triggered=False,
                 run_completed=False,
                 advanced_to_next_scene=False,
@@ -247,6 +249,10 @@ class PairScenarioRuntimeService:
             },
             completed_at=now,
         )
+        completed_scene = await self._repository.get_scene_instance(active_scene.id)
+        if completed_scene is None:
+            raise LookupError(f"SceneInstance not found: {active_scene.id}")
+        revealed_scene = await self._build_scene_state(run, completed_scene)
 
         if next_scene_id is None:
             completed_run = await self._repository.update_scenario_run(
@@ -275,6 +281,7 @@ class PairScenarioRuntimeService:
             state = await self.get_current_state(completed_run.id)
             return SubmitAnswerResult(
                 state=state,
+                revealed_scene=revealed_scene,
                 reveal_triggered=True,
                 run_completed=True,
                 advanced_to_next_scene=False,
@@ -344,6 +351,7 @@ class PairScenarioRuntimeService:
         state = await self.get_current_state(run.id)
         return SubmitAnswerResult(
             state=state,
+            revealed_scene=revealed_scene,
             reveal_triggered=True,
             run_completed=False,
             advanced_to_next_scene=True,

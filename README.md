@@ -26,6 +26,26 @@ uv run pytest
 uv run idea-check-smoke-generate
 ```
 
+## Pair Flow API
+
+Minimal product-facing pair runtime endpoints:
+
+```bash
+POST /pair-sessions
+POST /pair-sessions/{session_id}/join
+GET /pair-sessions/{session_id}/participants/{participant_id}/state
+POST /pair-sessions/{session_id}/participants/{participant_id}/answers
+```
+
+Expected local flow:
+
+```bash
+uv run alembic upgrade head
+uv run uvicorn idea_check_backend.main:app --reload
+```
+
+The API is a thin layer over `PairScenarioRuntimeService`: session creation creates the first participant, second participant join starts the runtime run, `state` returns a frontend-ready current view, and answer submission returns `waiting`, `progressed`, or `completed` outcomes with reveal data when both answers are available.
+
 ## LLM configuration
 
 Set provider access through env vars:
