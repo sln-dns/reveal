@@ -14,6 +14,8 @@ class RuntimeEventName:
     SESSION_CREATED = "session_created"
     PARTICIPANT_JOINED = "participant_joined"
     SCENARIO_RUN_STARTED = "scenario_run_started"
+    SCENE_GENERATION_REQUESTED = "scene_generation_requested"
+    SCENE_GENERATION_COMPLETED = "scene_generation_completed"
     SCENE_ACTIVATED = "scene_activated"
     QUESTION_DELIVERED = "question_delivered"
     ANSWER_SUBMITTED = "answer_submitted"

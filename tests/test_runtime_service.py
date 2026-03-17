@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from pathlib import Path
 
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
+from idea_check_backend.llm_service.client import LLMServiceClient
 from idea_check_backend.persistence.db import make_async_engine
 from idea_check_backend.persistence.models import (
     Base,
@@ -30,11 +32,28 @@ def test_runtime_service_rejects_duplicate_answer(tmp_path: Path) -> None:
     asyncio.run(_test_runtime_service_rejects_duplicate_answer(tmp_path))
 
 
+def test_runtime_service_falls_back_when_llm_response_is_invalid(tmp_path: Path) -> None:
+    asyncio.run(_test_runtime_service_falls_back_when_llm_response_is_invalid(tmp_path))
+
+
 async def _test_runtime_service_executes_pair_flow_and_completes_run(tmp_path: Path) -> None:
     repository = await _make_repository(tmp_path / "runtime_service.db")
+    llm_client = LLMServiceClient(
+        transport=lambda _prompt: json.dumps(
+            {
+                "intro_text": "Runtime intro",
+                "questions": [
+                    "Generated question for player one?",
+                    "Generated question for player two?",
+                ],
+                "transition_text": "Runtime transition",
+            }
+        )
+    )
     service = PairScenarioRuntimeService(
         repository,
         ScenarioBlueprintRepository({"date_route": BLUEPRINT_PATH}),
+        llm_client=llm_client,
     )
 
     session = await repository.create_session(scenario_key="date_route")
@@ -58,7 +77,24 @@ async def _test_runtime_service_executes_pair_flow_and_completes_run(tmp_path: P
     assert started_state.active_scene is not None
     assert started_state.active_scene.scene_instance.scene_key == "scene_01_intro"
     assert started_state.active_scene.phase == "collecting_answers"
+    assert (
+        started_state.active_scene.scene_instance.generated_content["intro_text"]
+        == "Runtime intro"
+    )
+    assert (
+        started_state.active_scene.scene_instance.generated_content["transition_text"]
+        == "Runtime transition"
+    )
+    assert started_state.active_scene.scene_instance.generated_content["used_fallback"] is False
     assert len(started_state.active_scene.questions) == 2
+    assert (
+        started_state.active_scene.questions[0].prompt_text
+        == "Generated question for player one?"
+    )
+    assert (
+        started_state.active_scene.questions[1].prompt_text
+        == "Generated question for player two?"
+    )
     assert all(question.answer_text is None for question in started_state.active_scene.questions)
 
     run_id = started_state.run.id
@@ -93,6 +129,12 @@ async def _test_runtime_service_executes_pair_flow_and_completes_run(tmp_path: P
     assert second_answer_result.state.active_scene is not None
     assert second_answer_result.state.active_scene.scene_instance.scene_key == "scene_02_direction"
     assert second_answer_result.state.active_scene.phase == "collecting_answers"
+    assert (
+        second_answer_result.state.active_scene.scene_instance.generated_content["generation_payload"][
+            "previous_answers_summary"
+        ]
+        == "participant_1: Quiet cafe | participant_2: Riverside walk"
+    )
 
     completed_first_scene = await repository.get_scene_instance(first_scene_id)
     assert completed_first_scene is not None
@@ -178,6 +220,59 @@ async def _test_runtime_service_rejects_duplicate_answer(tmp_path: Path) -> None
         assert "already answered" in str(error)
     else:
         raise AssertionError("Expected duplicate answer to be rejected")
+
+
+async def _test_runtime_service_falls_back_when_llm_response_is_invalid(tmp_path: Path) -> None:
+    repository = await _make_repository(tmp_path / "runtime_service_fallback.db")
+    service = PairScenarioRuntimeService(
+        repository,
+        ScenarioBlueprintRepository({"date_route": BLUEPRINT_PATH}),
+        llm_client=LLMServiceClient(transport=lambda _prompt: "not-json"),
+    )
+
+    session = await repository.create_session(scenario_key="date_route")
+    participant_a = await repository.add_session_participant(
+        session_id=session.id,
+        slot=1,
+        status=ParticipantStatus.ACTIVE,
+    )
+    participant_b = await repository.add_session_participant(
+        session_id=session.id,
+        slot=2,
+        status=ParticipantStatus.ACTIVE,
+    )
+
+    started_state = await service.start_run(session.id)
+
+    assert started_state.active_scene is not None
+    generated_content = started_state.active_scene.scene_instance.generated_content
+    assert generated_content["used_fallback"] is True
+    assert generated_content["intro_text"]
+    assert generated_content["questions"] == [
+        "Kakoy vibe dlya takogo vechera tebe blizhe?",
+        "S chem tebe legche nachat takoe priklyuchenie?",
+    ]
+    assert generated_content["generation_log"]["used_fallback"] is True
+    assert generated_content["generation_log"]["validation_error"] is not None
+    assert (
+        started_state.active_scene.questions[0].prompt_text == generated_content["questions"][0]
+    )
+    assert (
+        started_state.active_scene.questions[1].prompt_text == generated_content["questions"][1]
+    )
+
+    await service.submit_answer(
+        run_id=started_state.run.id,
+        participant_id=participant_a.id,
+        content_text="Fallback answer A",
+    )
+    result = await service.submit_answer(
+        run_id=started_state.run.id,
+        participant_id=participant_b.id,
+        content_text="Fallback answer B",
+    )
+
+    assert result.state.active_scene is not None
 
 
 async def _make_repository(db_path: Path) -> SqlAlchemyScenarioRuntimeRepository:

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
+from idea_check_backend.llm_service.client import LLMServiceClient, SceneGenerationResult
 from idea_check_backend.observability.runtime_events import (
     RuntimeEventLogger,
     RuntimeEventName,
@@ -23,6 +24,7 @@ from idea_check_backend.persistence.repository import (
     SqlAlchemyScenarioRuntimeRepository,
 )
 from idea_check_backend.scenario_engine.blueprint_loader import ScenarioBlueprintRepository
+from idea_check_backend.shared_types.scenario import SceneGenerationPayload
 from idea_check_backend.shared_types.scenario_blueprint import ScenarioBlueprint, SceneDefinition
 
 
@@ -79,10 +81,12 @@ class PairScenarioRuntimeService:
         repository: SqlAlchemyScenarioRuntimeRepository,
         blueprint_repository: ScenarioBlueprintRepository | None = None,
         event_logger: RuntimeEventLogger | None = None,
+        llm_client: LLMServiceClient | None = None,
     ) -> None:
         self._repository = repository
         self._blueprints = blueprint_repository or ScenarioBlueprintRepository()
         self._event_logger = event_logger or RuntimeEventLogger()
+        self._llm_client = llm_client or LLMServiceClient()
 
     async def start_run(self, session_id: str) -> RuntimeState:
         session = await self._repository.get_session(session_id)
@@ -124,6 +128,14 @@ class PairScenarioRuntimeService:
                 },
             )
 
+            generated_scene = self._generate_scene_content(
+                run=run,
+                blueprint=blueprint,
+                scene=first_scene,
+                scene_position=1,
+                previous_answers=[],
+                branch_reason=None,
+            )
             scene = await self._repository.create_scene_instance(
                 scenario_run_id=run.id,
                 scene_key=first_scene.scene_id,
@@ -133,11 +145,7 @@ class PairScenarioRuntimeService:
                     first_scene,
                     phase="collecting_answers",
                 ),
-                generated_content={
-                    "title": first_scene.title,
-                    "purpose": first_scene.purpose,
-                    "question_templates": list(first_scene.question_templates[:2]),
-                },
+                generated_content=generated_scene,
                 activated_at=now,
             )
             self._emit_scene_activated(run, scene, previous_state=None)
@@ -154,7 +162,10 @@ class PairScenarioRuntimeService:
             )
 
             for position, participant in enumerate(participants, start=1):
-                prompt_text = self._select_prompt(first_scene, participant.slot)
+                prompt_text = self._select_prompt(
+                    generated_scene["questions"],
+                    participant.slot,
+                )
                 question = await self._repository.create_question_instance(
                     scene_instance_id=scene.id,
                     participant_id=participant.id,
@@ -166,9 +177,10 @@ class PairScenarioRuntimeService:
                     prompt_payload={
                         "scene_key": first_scene.scene_id,
                         "participant_slot": participant.slot,
-                        "question_template_index": min(
-                            participant.slot - 1,
-                            len(first_scene.question_templates) - 1,
+                        "question_source": "generated",
+                        "question_index": self._resolve_prompt_index(
+                            generated_scene["questions"],
+                            participant.slot,
                         ),
                     },
                     delivered_at=now,
@@ -431,6 +443,14 @@ class PairScenarioRuntimeService:
             blueprint,
             next_scene_id,
         )
+        generated_scene = self._generate_scene_content(
+            run=run,
+            blueprint=blueprint,
+            scene=next_scene_definition,
+            scene_position=next_scene_index + 1,
+            previous_answers=answers,
+            branch_reason=branch_reason,
+        )
         next_scene = await self._repository.create_scene_instance(
             scenario_run_id=run.id,
             scene_key=next_scene_definition.scene_id,
@@ -440,11 +460,7 @@ class PairScenarioRuntimeService:
                 next_scene_definition,
                 phase="collecting_answers",
             ),
-            generated_content={
-                "title": next_scene_definition.title,
-                "purpose": next_scene_definition.purpose,
-                "question_templates": list(next_scene_definition.question_templates[:2]),
-            },
+            generated_content=generated_scene,
             activated_at=now,
         )
         self._emit_scene_activated(run, next_scene, previous_state=run.runtime_state)
@@ -457,13 +473,17 @@ class PairScenarioRuntimeService:
                 position=position,
                 status=QuestionStatus.DELIVERED,
                 state_payload={"reveal_available": False, "participant_slot": participant.slot},
-                prompt_text=self._select_prompt(next_scene_definition, participant.slot),
+                prompt_text=self._select_prompt(
+                    generated_scene["questions"],
+                    participant.slot,
+                ),
                 prompt_payload={
                     "scene_key": next_scene_definition.scene_id,
                     "participant_slot": participant.slot,
-                    "question_template_index": min(
-                        participant.slot - 1,
-                        len(next_scene_definition.question_templates) - 1,
+                    "question_source": "generated",
+                    "question_index": self._resolve_prompt_index(
+                        generated_scene["questions"],
+                        participant.slot,
                     ),
                 },
                 delivered_at=now,
@@ -628,6 +648,137 @@ class PairScenarioRuntimeService:
             )
         return participants
 
+    def _generate_scene_content(
+        self,
+        *,
+        run: ScenarioRunRecord,
+        blueprint: ScenarioBlueprint,
+        scene: SceneDefinition,
+        scene_position: int,
+        previous_answers: list[AnswerRecord],
+        branch_reason: str | None,
+    ) -> dict[str, Any]:
+        payload = self._build_scene_generation_payload(
+            blueprint=blueprint,
+            scene=scene,
+            previous_answers=previous_answers,
+            branch_reason=branch_reason,
+        )
+        self._event_logger.emit(
+            RuntimeEventName.SCENE_GENERATION_REQUESTED,
+            session_id=run.session_id,
+            scenario_run_id=run.id,
+            metadata={
+                "scene_key": scene.scene_id,
+                "scene_position": scene_position,
+                "question_count_target": payload.question_count_target,
+                "has_previous_answers": bool(previous_answers),
+                "branch_reason": branch_reason,
+            },
+        )
+
+        result: SceneGenerationResult | None = None
+        validation_error: str | None = None
+        try:
+            result = self._llm_client.generate_scene(payload)
+        except Exception as error:
+            validation_error = str(error)
+
+        if result is None:
+            fallback = self._llm_client.build_fallback_generation(payload)
+            generated_content = {
+                "title": scene.title,
+                "purpose": scene.purpose,
+                "intro_text": fallback.intro_text,
+                "questions": list(fallback.questions),
+                "transition_text": fallback.transition_text,
+                "used_fallback": True,
+                "generation_payload": payload.model_dump(mode="json"),
+                "generation_log": {
+                    "scene_id": payload.scene_id,
+                    "provider": self._llm_client.settings.llm_provider,
+                    "model": self._llm_client.settings.llm_model,
+                    "prompt": self._llm_client.build_prompt(payload),
+                    "raw_response": "<runtime_generation_exception>",
+                    "validation_error": validation_error,
+                    "used_fallback": True,
+                },
+            }
+        else:
+            generated_content = {
+                "title": scene.title,
+                "purpose": scene.purpose,
+                "intro_text": result.generation.intro_text,
+                "questions": list(result.generation.questions),
+                "transition_text": result.generation.transition_text,
+                "used_fallback": result.generation.used_fallback,
+                "generation_payload": payload.model_dump(mode="json"),
+                "generation_log": result.log.model_dump(mode="json"),
+            }
+
+        self._event_logger.emit(
+            RuntimeEventName.SCENE_GENERATION_COMPLETED,
+            session_id=run.session_id,
+            scenario_run_id=run.id,
+            metadata={
+                "scene_key": scene.scene_id,
+                "scene_position": scene_position,
+                "used_fallback": generated_content["used_fallback"],
+                "provider": generated_content["generation_log"]["provider"],
+                "model": generated_content["generation_log"]["model"],
+                "validation_error": generated_content["generation_log"]["validation_error"],
+            },
+        )
+        return generated_content
+
+    def _build_scene_generation_payload(
+        self,
+        *,
+        blueprint: ScenarioBlueprint,
+        scene: SceneDefinition,
+        previous_answers: list[AnswerRecord],
+        branch_reason: str | None,
+    ) -> SceneGenerationPayload:
+        return SceneGenerationPayload(
+            scene_id=scene.scene_id,
+            scene_type=scene.scene_type,
+            scene_title=scene.title,
+            scene_purpose=scene.purpose,
+            psychological_goal=scene.psychological_goal,
+            ladder_stages=scene.ladder_stages,
+            allowed_question_families=scene.allowed_question_families,
+            forbidden_question_families=scene.forbidden_question_families,
+            question_templates=scene.question_templates,
+            question_count_target=scene.question_count_target,
+            transition_goal=scene.transition_goal,
+            selected_world=blueprint.world_setup.preset_world_ids[0],
+            selected_tone=blueprint.world_setup.allowed_tones[0],
+            product_goal=blueprint.product_goal,
+            experience_principles=blueprint.experience_principles,
+            max_answer_length_chars=blueprint.question_policy.max_answer_length_chars,
+            previous_answers_summary=self._summarize_answers(previous_answers),
+            branching_context=self._build_branching_context(branch_reason, previous_answers),
+        )
+
+    def _summarize_answers(self, answers: list[AnswerRecord]) -> str | None:
+        if not answers:
+            return None
+        return " | ".join(
+            f"participant_{index}: {answer.content_text.strip()}"
+            for index, answer in enumerate(answers, start=1)
+        )
+
+    def _build_branching_context(
+        self,
+        branch_reason: str | None,
+        answers: list[AnswerRecord],
+    ) -> str | None:
+        if branch_reason is None and not answers:
+            return None
+        if branch_reason is None:
+            return f"Previous scene answers captured: {len(answers)}"
+        return f"Branch reason: {branch_reason}. Previous scene answers captured: {len(answers)}"
+
     def _build_run_runtime_state(
         self,
         *,
@@ -660,11 +811,14 @@ class PairScenarioRuntimeService:
             "awaiting_participant_ids": [],
         }
 
-    def _select_prompt(self, scene: SceneDefinition, participant_slot: int) -> str | None:
-        if not scene.question_templates:
+    def _select_prompt(self, prompts: list[str], participant_slot: int) -> str | None:
+        if not prompts:
             return None
-        prompt_index = min(participant_slot - 1, len(scene.question_templates) - 1)
-        return scene.question_templates[prompt_index]
+        prompt_index = self._resolve_prompt_index(prompts, participant_slot)
+        return prompts[prompt_index]
+
+    def _resolve_prompt_index(self, prompts: list[str], participant_slot: int) -> int:
+        return min(participant_slot - 1, len(prompts) - 1)
 
     def _find_scene_definition(
         self,

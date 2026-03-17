@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from pathlib import Path
 
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from idea_check_backend.api.pair_flow_service import PairFlowApiService
+from idea_check_backend.llm_service.client import LLMServiceClient
 from idea_check_backend.observability.runtime_events import RuntimeEventLogger, RuntimeEventName
 from idea_check_backend.persistence.db import make_async_engine
 from idea_check_backend.persistence.models import Base
@@ -32,6 +34,10 @@ def test_pair_flow_emits_runtime_events_across_happy_path(tmp_path: Path) -> Non
     asyncio.run(_test_pair_flow_emits_runtime_events_across_happy_path(tmp_path))
 
 
+def test_runtime_logs_generation_fallback_status(tmp_path: Path) -> None:
+    asyncio.run(_test_runtime_logs_generation_fallback_status(tmp_path))
+
+
 async def _test_pair_flow_emits_runtime_events_across_happy_path(tmp_path: Path) -> None:
     repository = await _make_repository(tmp_path / "runtime_events.db")
     blueprints = ScenarioBlueprintRepository({"date_route": BLUEPRINT_PATH})
@@ -47,6 +53,15 @@ async def _test_pair_flow_emits_runtime_events_across_happy_path(tmp_path: Path)
         repository,
         blueprints,
         event_logger=event_logger,
+        llm_client=LLMServiceClient(
+            transport=lambda _prompt: json.dumps(
+                {
+                    "intro_text": "Logged intro",
+                    "questions": ["Logged question one?", "Logged question two?"],
+                    "transition_text": "Logged transition",
+                }
+            )
+        ),
     )
     service = PairFlowApiService(
         repository=repository,
@@ -89,6 +104,8 @@ async def _test_pair_flow_emits_runtime_events_across_happy_path(tmp_path: Path)
     assert RuntimeEventName.SESSION_CREATED in event_names
     assert event_names.count(RuntimeEventName.PARTICIPANT_JOINED) == 2
     assert RuntimeEventName.SCENARIO_RUN_STARTED in event_names
+    assert RuntimeEventName.SCENE_GENERATION_REQUESTED in event_names
+    assert RuntimeEventName.SCENE_GENERATION_COMPLETED in event_names
     assert RuntimeEventName.SCENE_ACTIVATED in event_names
     assert RuntimeEventName.QUESTION_DELIVERED in event_names
     assert RuntimeEventName.ANSWER_SUBMITTED in event_names
@@ -127,10 +144,50 @@ async def _test_pair_flow_emits_runtime_events_across_happy_path(tmp_path: Path)
     )
     assert "branch_reason" in branch_event["metadata"]
 
+    generation_event = next(
+        event
+        for event in handler.events
+        if event["event_name"] == RuntimeEventName.SCENE_GENERATION_COMPLETED
+    )
+    assert generation_event["metadata"]["used_fallback"] is False
+
     runtime_errors = [
         event for event in handler.events if event["event_name"] == RuntimeEventName.RUNTIME_ERROR
     ]
     assert runtime_errors == []
+
+
+async def _test_runtime_logs_generation_fallback_status(tmp_path: Path) -> None:
+    repository = await _make_repository(tmp_path / "runtime_generation_fallback_events.db")
+    blueprints = ScenarioBlueprintRepository({"date_route": BLUEPRINT_PATH})
+    logger = logging.getLogger("tests.runtime_generation_fallback_events")
+    logger.handlers.clear()
+    logger.propagate = False
+    logger.setLevel(logging.INFO)
+    handler = _ListHandler()
+    logger.addHandler(handler)
+    event_logger = RuntimeEventLogger(logger)
+
+    runtime_service = PairScenarioRuntimeService(
+        repository,
+        blueprints,
+        event_logger=event_logger,
+        llm_client=LLMServiceClient(transport=lambda _prompt: "not-json"),
+    )
+
+    session = await repository.create_session(scenario_key="date_route")
+    await repository.add_session_participant(session_id=session.id, slot=1, status="active")
+    await repository.add_session_participant(session_id=session.id, slot=2, status="active")
+
+    await runtime_service.start_run(session.id)
+
+    generation_event = next(
+        event
+        for event in handler.events
+        if event["event_name"] == RuntimeEventName.SCENE_GENERATION_COMPLETED
+    )
+    assert generation_event["metadata"]["used_fallback"] is True
+    assert generation_event["metadata"]["validation_error"] is not None
 
 
 async def _make_repository(db_path: Path) -> SqlAlchemyScenarioRuntimeRepository:

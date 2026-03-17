@@ -60,6 +60,9 @@ class SceneStateResponse(BaseModel):
     key: str
     title: str | None
     purpose: str | None
+    intro_text: str | None
+    transition_text: str | None
+    used_fallback: bool
     position: int
     status: str
     phase: str

@@ -64,8 +64,15 @@ class LLMServiceClient:
     def supports_scene(self, scene_id: str) -> bool:
         return scene_id in self.SUPPORTED_SCENE_IDS
 
+    @property
+    def settings(self) -> Settings:
+        return self._settings
+
     def build_prompt(self, payload: SceneGenerationPayload) -> str:
         return self._prompt_builder.build(payload)
+
+    def build_fallback_generation(self, payload: SceneGenerationPayload) -> SceneGeneration:
+        return self._build_fallback_generation(payload)
 
     def generate_scene(self, payload: SceneGenerationPayload) -> SceneGenerationResult:
         prompt = self.build_prompt(payload)
