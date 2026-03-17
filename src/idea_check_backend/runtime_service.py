@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -21,6 +22,7 @@ from idea_check_backend.persistence.repository import (
     ScenarioRunRecord,
     SceneInstanceRecord,
     SessionParticipantRecord,
+    SummaryRecord,
     SqlAlchemyScenarioRuntimeRepository,
 )
 from idea_check_backend.scenario_engine.blueprint_loader import ScenarioBlueprintRepository
@@ -64,6 +66,7 @@ class RuntimeSceneState:
 class RuntimeState:
     run: ScenarioRunRecord
     active_scene: RuntimeSceneState | None
+    summaries: list[SummaryRecord]
 
 
 @dataclass(slots=True, frozen=True)
@@ -75,6 +78,29 @@ class SubmitAnswerResult:
     advanced_to_next_scene: bool
 
 
+@dataclass(slots=True, frozen=True)
+class SummarySubjectContext:
+    participant: SessionParticipantRecord
+    answers: list[dict[str, Any]]
+    topics: list[str]
+    preference_observations: list[str]
+    vibe_observations: list[str]
+
+
+@dataclass(slots=True, frozen=True)
+class SummaryGenerationContext:
+    scenario_run_id: str
+    completed_at: datetime
+    summary_focus: list[str]
+    summary_tone: str
+    forbidden_summary_styles: list[str]
+    participants: list[SessionParticipantRecord]
+    subjects: dict[str, SummarySubjectContext]
+
+
+SummaryGenerator = Callable[[SummaryGenerationContext, SessionParticipantRecord], dict[str, Any]]
+
+
 class PairScenarioRuntimeService:
     def __init__(
         self,
@@ -82,11 +108,13 @@ class PairScenarioRuntimeService:
         blueprint_repository: ScenarioBlueprintRepository | None = None,
         event_logger: RuntimeEventLogger | None = None,
         llm_client: LLMServiceClient | None = None,
+        summary_generator: SummaryGenerator | None = None,
     ) -> None:
         self._repository = repository
         self._blueprints = blueprint_repository or ScenarioBlueprintRepository()
         self._event_logger = event_logger or RuntimeEventLogger()
         self._llm_client = llm_client or LLMServiceClient()
+        self._summary_generator = summary_generator or self._build_player_summary
 
     async def start_run(self, session_id: str) -> RuntimeState:
         session = await self._repository.get_session(session_id)
@@ -215,12 +243,14 @@ class PairScenarioRuntimeService:
             raise LookupError(f"ScenarioRun not found: {run_id}")
 
         active_scene = await self._repository.get_active_scene_for_run(run_id)
+        summaries = await self._repository.list_run_summaries(run_id)
         if active_scene is None:
-            return RuntimeState(run=run, active_scene=None)
+            return RuntimeState(run=run, active_scene=None, summaries=summaries)
 
         return RuntimeState(
             run=run,
             active_scene=await self._build_scene_state(run, active_scene),
+            summaries=summaries,
         )
 
     async def submit_answer(
@@ -396,6 +426,11 @@ class PairScenarioRuntimeService:
         )
 
         if next_scene_id is None:
+            summary_context = await self._build_summary_generation_context(
+                run=run,
+                blueprint=blueprint,
+                completed_at=now,
+            )
             completed_run = await self._repository.update_scenario_run(
                 run.id,
                 status=RunStatus.COMPLETED,
@@ -407,7 +442,15 @@ class PairScenarioRuntimeService:
                     "awaiting_participant_ids": [],
                     "revealed": True,
                 },
+                generated_content={
+                    **run.generated_content,
+                    "summary_context": self._serialize_summary_context(summary_context),
+                },
                 completed_at=now,
+            )
+            await self._generate_and_store_run_summaries(
+                run=completed_run,
+                summary_context=summary_context,
             )
             await self._repository.update_session(
                 run.session_id,
@@ -882,3 +925,267 @@ class PairScenarioRuntimeService:
         if value.tzinfo is None:
             return value.replace(tzinfo=UTC)
         return value.astimezone(UTC)
+
+    async def _build_summary_generation_context(
+        self,
+        *,
+        run: ScenarioRunRecord,
+        blueprint: ScenarioBlueprint,
+        completed_at: datetime,
+    ) -> SummaryGenerationContext:
+        participants = await self._repository.list_session_participants(run.session_id)
+        scenes = await self._repository.list_scene_instances_for_run(run.id)
+        answers_by_participant: dict[str, list[dict[str, Any]]] = {
+            participant.id: [] for participant in participants
+        }
+
+        for scene in scenes:
+            questions = await self._repository.list_question_instances_for_scene(scene.id)
+            question_by_id = {question.id: question for question in questions}
+            scene_answers = await self._repository.list_scene_answers_for_reveal(scene.id)
+            for answer in scene_answers:
+                question = question_by_id.get(answer.question_instance_id)
+                answers_by_participant.setdefault(answer.participant_id, []).append(
+                    {
+                        "scene_key": scene.scene_key,
+                        "scene_position": scene.position,
+                        "question_key": question.question_key if question is not None else None,
+                        "prompt_text": question.prompt_text if question is not None else None,
+                        "answer_text": answer.content_text.strip(),
+                    }
+                )
+
+        subjects = {
+            participant.id: self._build_subject_summary_context(
+                participant=participant,
+                answers=answers_by_participant.get(participant.id, []),
+            )
+            for participant in participants
+        }
+        policy = blueprint.summary_policy
+        return SummaryGenerationContext(
+            scenario_run_id=run.id,
+            completed_at=completed_at,
+            summary_focus=list(policy.summary_focus),
+            summary_tone=policy.summary_tone,
+            forbidden_summary_styles=list(policy.forbidden_summary_styles),
+            participants=participants,
+            subjects=subjects,
+        )
+
+    def _build_subject_summary_context(
+        self,
+        *,
+        participant: SessionParticipantRecord,
+        answers: list[dict[str, Any]],
+    ) -> SummarySubjectContext:
+        snippets = [item["answer_text"] for item in answers if item["answer_text"]]
+        topics = self._extract_topics(answers)
+        preference_observations = [
+            f"chasto vozvrashchalsya k temam: {', '.join(snippets[:2])}"
+            if len(snippets) >= 2
+            else f"otmetil: {snippets[0]}"
+            for _ in [0]
+            if snippets
+        ]
+        vibe_observations = self._extract_vibe_observations(snippets)
+        return SummarySubjectContext(
+            participant=participant,
+            answers=answers,
+            topics=topics,
+            preference_observations=preference_observations,
+            vibe_observations=vibe_observations,
+        )
+
+    def _extract_topics(self, answers: list[dict[str, Any]]) -> list[str]:
+        topics: list[str] = []
+        for item in answers:
+            prompt_text = (item.get("prompt_text") or "").strip()
+            answer_text = (item.get("answer_text") or "").strip()
+            if answer_text:
+                topics.append(answer_text)
+            elif prompt_text:
+                topics.append(prompt_text)
+
+        unique_topics: list[str] = []
+        seen: set[str] = set()
+        for topic in topics:
+            normalized = topic.casefold()
+            if normalized in seen:
+                continue
+            seen.add(normalized)
+            unique_topics.append(self._trim_text(topic, limit=72))
+            if len(unique_topics) == 3:
+                break
+        return unique_topics
+
+    def _extract_vibe_observations(self, snippets: list[str]) -> list[str]:
+        if not snippets:
+            return ["otvechal bez yavnyh signalov, poetomu luchshe opiratsya na konkretiku iz vashego marshruta"]
+
+        lowered = " ".join(snippets).casefold()
+        observations: list[str] = []
+        if any(token in lowered for token in ("cafe", "tea", "coffee", "quiet", "spok", "walk")):
+            observations.append("tyanetsya k spokojnomu, ne-peregruzhennomu formatu")
+        if any(token in lowered for token in ("play", "fun", "laugh", "adventure", "game")):
+            observations.append("otzyvaetsya na legkost i igrovuyu dinamiku")
+        if any(token in lowered for token in ("slow", "pause", "soft", "gentle")):
+            observations.append("predpochitaet myagkiy temp razgovora")
+        if not observations:
+            observations.append("v otvetah chuvstvuetsya konkretnyy, prizemlennyy vibe bez pozerskih formulirovok")
+        return observations[:2]
+
+    async def _generate_and_store_run_summaries(
+        self,
+        *,
+        run: ScenarioRunRecord,
+        summary_context: SummaryGenerationContext,
+    ) -> None:
+        participants = summary_context.participants
+        if len(participants) < 2:
+            return
+
+        for participant in participants:
+            other_participant = next(
+                candidate for candidate in participants if candidate.id != participant.id
+            )
+            try:
+                generated = self._summary_generator(summary_context, participant)
+                used_fallback = bool(generated.get("used_fallback", False))
+            except Exception as error:
+                self._event_logger.emit_error(
+                    error=error,
+                    session_id=run.session_id,
+                    scenario_run_id=run.id,
+                    participant_id=participant.id,
+                    participant_slot=participant.slot,
+                    metadata={"operation": "generate_summary"},
+                )
+                generated = self._build_fallback_player_summary(summary_context, participant)
+                used_fallback = True
+
+            payload = {
+                **generated.get("content_payload", {}),
+                "recipient_participant_id": participant.id,
+                "subject_participant_id": other_participant.id,
+                "summary_focus": summary_context.summary_focus,
+                "summary_tone": summary_context.summary_tone,
+                "forbidden_summary_styles": summary_context.forbidden_summary_styles,
+                "used_fallback": used_fallback,
+            }
+            await self._repository.save_summary(
+                scenario_run_id=run.id,
+                kind="run",
+                content_text=generated["content_text"],
+                content_payload=payload,
+                generated_at=summary_context.completed_at,
+            )
+
+    def _build_player_summary(
+        self,
+        summary_context: SummaryGenerationContext,
+        recipient: SessionParticipantRecord,
+    ) -> dict[str, Any]:
+        subject = next(
+            participant for participant in summary_context.participants if participant.id != recipient.id
+        )
+        subject_context = summary_context.subjects[subject.id]
+        subject_name = subject.display_name or "Vash partner"
+        portrait = (
+            f"{subject_name} po marshrutu pokazalsya chelovekom, kotoromu blizki "
+            f"{self._join_items(subject_context.preference_observations or subject_context.topics or ['zhivye, konkretnye situacii'])}."
+        )
+        vibe = (
+            "Po vibe bylo zametno, chto on/ona "
+            f"{self._join_items(subject_context.vibe_observations)}."
+        )
+        topics = (
+            "V realnom razgovore mozhno prodolzhit: "
+            f"{self._join_items(subject_context.topics or ['samyj komfortnyj format vstrechi', 'temp i atmosfera vechera'])}."
+        )
+        return {
+            "content_text": " ".join((portrait, vibe, topics)),
+            "used_fallback": False,
+            "content_payload": {
+                "sections": {
+                    "portrait": portrait,
+                    "vibe": vibe,
+                    "topics": subject_context.topics,
+                }
+            },
+        }
+
+    def _build_fallback_player_summary(
+        self,
+        summary_context: SummaryGenerationContext,
+        recipient: SessionParticipantRecord,
+    ) -> dict[str, Any]:
+        subject = next(
+            participant for participant in summary_context.participants if participant.id != recipient.id
+        )
+        subject_context = summary_context.subjects[subject.id]
+        subject_name = subject.display_name or "Vash partner"
+        topics = subject_context.topics or [
+            "chto emu/ey osobenno nravitsya v formate vstrechi",
+            "kakoy temp razgovora samyy komfortnyy",
+        ]
+        text = (
+            f"{subject_name} ostavil teploe vpechatlenie i daval konkretnye signaly o tom, "
+            f"chto emu/ey blizko. Bez diagnozov i obobshcheniy: luchshe vsego prodolzhit "
+            f"razgovor vokrug tem {self._join_items(topics)}."
+        )
+        return {
+            "content_text": text,
+            "used_fallback": True,
+            "content_payload": {
+                "sections": {
+                    "portrait": text,
+                    "vibe": None,
+                    "topics": topics,
+                }
+            },
+        }
+
+    def _serialize_summary_context(
+        self,
+        summary_context: SummaryGenerationContext,
+    ) -> dict[str, Any]:
+        return {
+            "scenario_run_id": summary_context.scenario_run_id,
+            "completed_at": summary_context.completed_at.isoformat(),
+            "summary_focus": list(summary_context.summary_focus),
+            "summary_tone": summary_context.summary_tone,
+            "forbidden_summary_styles": list(summary_context.forbidden_summary_styles),
+            "participants": [
+                {
+                    "participant_id": participant.id,
+                    "slot": participant.slot,
+                    "display_name": participant.display_name,
+                    "topics": summary_context.subjects[participant.id].topics,
+                    "preference_observations": summary_context.subjects[
+                        participant.id
+                    ].preference_observations,
+                    "vibe_observations": summary_context.subjects[
+                        participant.id
+                    ].vibe_observations,
+                    "answers": summary_context.subjects[participant.id].answers,
+                }
+                for participant in summary_context.participants
+            ],
+        }
+
+    def _trim_text(self, value: str, *, limit: int) -> str:
+        trimmed = " ".join(value.split())
+        if len(trimmed) <= limit:
+            return trimmed
+        return trimmed[: limit - 3].rstrip() + "..."
+
+    def _join_items(self, items: list[str]) -> str:
+        cleaned = [item.strip() for item in items if item and item.strip()]
+        if not cleaned:
+            return ""
+        if len(cleaned) == 1:
+            return cleaned[0]
+        if len(cleaned) == 2:
+            return f"{cleaned[0]} i {cleaned[1]}"
+        return f"{', '.join(cleaned[:-1])} i {cleaned[-1]}"

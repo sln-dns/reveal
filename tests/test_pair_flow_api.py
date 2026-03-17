@@ -136,6 +136,61 @@ def test_pair_flow_api_rejects_duplicate_submit_answer(tmp_path: Path) -> None:
     assert "already answered" in duplicate_submit.json()["detail"]
 
 
+def test_pair_flow_api_returns_final_summary_after_run_completion(tmp_path: Path) -> None:
+    service = asyncio.run(_make_service(tmp_path / "pair_flow_api_summary.db"))
+    app = create_app()
+    app.dependency_overrides[get_pair_flow_api_service] = lambda: service
+    client = TestClient(app)
+
+    create_payload = client.post("/pair-sessions", json={"display_name": "Alex"}).json()
+    session_id = create_payload["state"]["session"]["id"]
+    participant_a_id = create_payload["access"]["id"]
+    join_payload = client.post(
+        f"/pair-sessions/{session_id}/join",
+        json={"display_name": "Sam"},
+    ).json()
+    participant_b_id = join_payload["access"]["id"]
+
+    state_payload = join_payload["state"]
+    assert state_payload["final_summary"] is None
+
+    while not state_payload["completed"]:
+        scene_key = state_payload["current_scene"]["key"]
+        client.post(
+            f"/pair-sessions/{session_id}/participants/{participant_a_id}/answers",
+            json={"content_text": f"{scene_key} quiet cafe and long walk"},
+        )
+        result = client.post(
+            f"/pair-sessions/{session_id}/participants/{participant_b_id}/answers",
+            json={"content_text": f"{scene_key} playful adventure and jokes"},
+        )
+        assert result.status_code == 200
+        state_payload = result.json()["state"]
+
+    assert state_payload["completed"] is True
+    assert state_payload["state_kind"] == "completed"
+    assert state_payload["current_scene"] is None
+    assert state_payload["final_summary"] is not None
+    assert state_payload["final_summary"]["recipient_participant_id"] == participant_b_id
+    assert state_payload["final_summary"]["subject_participant_id"] == participant_a_id
+    assert state_payload["final_summary"]["focus"] == [
+        "other_person_preferences",
+        "other_person_vibe",
+        "conversation_topics_for_real_meeting",
+    ]
+    assert state_payload["final_summary"]["tone"] == "warm_observational"
+    assert "V realnom razgovore mozhno prodolzhit" in state_payload["final_summary"]["text"]
+
+    participant_a_state = client.get(
+        f"/pair-sessions/{session_id}/participants/{participant_a_id}/state"
+    )
+    assert participant_a_state.status_code == 200
+    participant_a_payload = participant_a_state.json()
+    assert participant_a_payload["final_summary"] is not None
+    assert participant_a_payload["final_summary"]["recipient_participant_id"] == participant_a_id
+    assert participant_a_payload["final_summary"]["subject_participant_id"] == participant_b_id
+
+
 async def _make_service(db_path: Path) -> PairFlowApiService:
     engine = make_async_engine(f"sqlite+aiosqlite:///{db_path}")
     async with engine.begin() as connection:

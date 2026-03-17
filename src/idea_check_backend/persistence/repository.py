@@ -482,6 +482,15 @@ class SqlAlchemyScenarioRuntimeRepository:
         )
         return await self._fetch_one(statement, _to_scene_instance_record)
 
+    async def list_scene_instances_for_run(self, run_id: str) -> list[SceneInstanceRecord]:
+        """Return all scene instances for a run ordered by scene position."""
+        statement = (
+            select(SceneInstance)
+            .where(SceneInstance.scenario_run_id == run_id)
+            .order_by(SceneInstance.position.asc(), SceneInstance.created_at.asc())
+        )
+        return await self._fetch_all(statement, _to_scene_instance_record)
+
     async def create_question_instance(
         self,
         *,

@@ -8,6 +8,7 @@ from idea_check_backend.api.schemas.pair_flow import (
     JoinSessionResponse,
     PairFlowStateKind,
     PairFlowStateResponse,
+    PlayerSummaryResponse,
     ParticipantIdentity,
     QuestionStateResponse,
     RunSummary,
@@ -25,6 +26,7 @@ from idea_check_backend.persistence.repository import (
     ScenarioRunRecord,
     SessionParticipantRecord,
     SessionRecord,
+    SummaryRecord,
     SqlAlchemyScenarioRuntimeRepository,
 )
 from idea_check_backend.runtime_service import (
@@ -259,6 +261,7 @@ class PairFlowApiService:
             None,
         ) if scene is not None else None
         run_summary = None
+        final_summary = None
         updated_at = session.updated_at
         if runtime_state is not None:
             updated_at = runtime_state.run.updated_at
@@ -269,6 +272,10 @@ class PairFlowApiService:
                 scene_position=runtime_state.run.runtime_state.get("scene_position"),
                 total_scenes=runtime_state.run.runtime_state.get("total_scenes"),
                 current_scene_key=runtime_state.run.current_scene_key,
+            )
+            final_summary = self._serialize_player_summary(
+                runtime_state.summaries,
+                participant.id,
             )
 
         state_kind = self._determine_state_kind(session, runtime_state, participant_question)
@@ -287,6 +294,7 @@ class PairFlowApiService:
             can_reveal=state_kind == PairFlowStateKind.REVEAL,
             completed=state_kind == PairFlowStateKind.COMPLETED,
             current_scene=self._serialize_scene(scene),
+            final_summary=final_summary,
             answered_current_question=(
                 participant_question.answered if participant_question else False
             ),
@@ -361,3 +369,27 @@ class PairFlowApiService:
                 for question in scene.questions
             ],
         )
+
+    def _serialize_player_summary(
+        self,
+        summaries: list[SummaryRecord],
+        participant_id: str,
+    ) -> PlayerSummaryResponse | None:
+        for summary in summaries:
+            if summary.content_payload.get("recipient_participant_id") != participant_id:
+                continue
+            return PlayerSummaryResponse(
+                id=summary.id,
+                kind=summary.kind,
+                text=summary.content_text,
+                subject_participant_id=summary.content_payload.get("subject_participant_id"),
+                recipient_participant_id=summary.content_payload.get("recipient_participant_id"),
+                focus=list(summary.content_payload.get("summary_focus", [])),
+                tone=summary.content_payload.get("summary_tone"),
+                forbidden_styles=list(
+                    summary.content_payload.get("forbidden_summary_styles", [])
+                ),
+                used_fallback=bool(summary.content_payload.get("used_fallback", False)),
+                generated_at=summary.generated_at,
+            )
+        return None

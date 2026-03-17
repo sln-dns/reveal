@@ -36,6 +36,16 @@ def test_runtime_service_falls_back_when_llm_response_is_invalid(tmp_path: Path)
     asyncio.run(_test_runtime_service_falls_back_when_llm_response_is_invalid(tmp_path))
 
 
+def test_runtime_service_generates_per_player_summary_on_completion(tmp_path: Path) -> None:
+    asyncio.run(_test_runtime_service_generates_per_player_summary_on_completion(tmp_path))
+
+
+def test_runtime_service_completes_run_even_when_summary_generation_falls_back(
+    tmp_path: Path,
+) -> None:
+    asyncio.run(_test_runtime_service_completes_run_even_when_summary_generation_falls_back(tmp_path))
+
+
 async def _test_runtime_service_executes_pair_flow_and_completes_run(tmp_path: Path) -> None:
     repository = await _make_repository(tmp_path / "runtime_service.db")
     llm_client = LLMServiceClient(
@@ -261,18 +271,149 @@ async def _test_runtime_service_falls_back_when_llm_response_is_invalid(tmp_path
         started_state.active_scene.questions[1].prompt_text == generated_content["questions"][1]
     )
 
-    await service.submit_answer(
-        run_id=started_state.run.id,
-        participant_id=participant_a.id,
-        content_text="Fallback answer A",
-    )
-    result = await service.submit_answer(
-        run_id=started_state.run.id,
-        participant_id=participant_b.id,
-        content_text="Fallback answer B",
+
+async def _test_runtime_service_generates_per_player_summary_on_completion(
+    tmp_path: Path,
+) -> None:
+    repository = await _make_repository(tmp_path / "runtime_service_summary.db")
+    service = PairScenarioRuntimeService(
+        repository,
+        ScenarioBlueprintRepository({"date_route": BLUEPRINT_PATH}),
+        llm_client=LLMServiceClient(
+            transport=lambda _prompt: json.dumps(
+                {
+                    "intro_text": "Runtime intro",
+                    "questions": ["Q1?", "Q2?"],
+                    "transition_text": "Runtime transition",
+                }
+            )
+        ),
     )
 
-    assert result.state.active_scene is not None
+    session = await repository.create_session(scenario_key="date_route")
+    participant_a = await repository.add_session_participant(
+        session_id=session.id,
+        slot=1,
+        display_name="Alex",
+        status=ParticipantStatus.ACTIVE,
+    )
+    participant_b = await repository.add_session_participant(
+        session_id=session.id,
+        slot=2,
+        display_name="Sam",
+        status=ParticipantStatus.ACTIVE,
+    )
+
+    state = await service.start_run(session.id)
+    while state.active_scene is not None:
+        scene_key = state.active_scene.scene_instance.scene_key
+        await service.submit_answer(
+            run_id=state.run.id,
+            participant_id=participant_a.id,
+            content_text=f"{scene_key} quiet cafe and long walk",
+        )
+        result = await service.submit_answer(
+            run_id=state.run.id,
+            participant_id=participant_b.id,
+            content_text=f"{scene_key} playful adventure and jokes",
+        )
+        if result.run_completed:
+            final_state = result.state
+            break
+        state = result.state
+    else:
+        raise AssertionError("Runtime should complete the scenario run")
+
+    assert final_state.run.status == RunStatus.COMPLETED
+    assert final_state.active_scene is None
+    assert len(final_state.summaries) == 2
+
+    stored_summaries = await repository.list_run_summaries(final_state.run.id)
+    assert len(stored_summaries) == 2
+    assert {item.content_payload["recipient_participant_id"] for item in stored_summaries} == {
+        participant_a.id,
+        participant_b.id,
+    }
+    assert {item.content_payload["subject_participant_id"] for item in stored_summaries} == {
+        participant_a.id,
+        participant_b.id,
+    }
+    assert all(item.kind == "run" for item in stored_summaries)
+    assert all(item.content_payload["summary_tone"] == "warm_observational" for item in stored_summaries)
+    assert all(
+        item.content_payload["forbidden_summary_styles"]
+        == ["clinical_psychology", "compatibility_score_only", "judgmental_language"]
+        for item in stored_summaries
+    )
+    assert any("V realnom razgovore mozhno prodolzhit" in item.content_text for item in stored_summaries)
+
+    completed_run = await repository.get_scenario_run(final_state.run.id)
+    assert completed_run is not None
+    summary_context = completed_run.generated_content["summary_context"]
+    assert summary_context["summary_focus"] == [
+        "other_person_preferences",
+        "other_person_vibe",
+        "conversation_topics_for_real_meeting",
+    ]
+    assert len(summary_context["participants"]) == 2
+
+
+async def _test_runtime_service_completes_run_even_when_summary_generation_falls_back(
+    tmp_path: Path,
+) -> None:
+    repository = await _make_repository(tmp_path / "runtime_service_summary_fallback.db")
+    service = PairScenarioRuntimeService(
+        repository,
+        ScenarioBlueprintRepository({"date_route": BLUEPRINT_PATH}),
+        llm_client=LLMServiceClient(
+            transport=lambda _prompt: json.dumps(
+                {
+                    "intro_text": "Runtime intro",
+                    "questions": ["Q1?", "Q2?"],
+                    "transition_text": "Runtime transition",
+                }
+            )
+        ),
+        summary_generator=lambda _context, _recipient: (_ for _ in ()).throw(
+            ValueError("summary generation failed")
+        ),
+    )
+
+    session = await repository.create_session(scenario_key="date_route")
+    participant_a = await repository.add_session_participant(
+        session_id=session.id,
+        slot=1,
+        status=ParticipantStatus.ACTIVE,
+    )
+    participant_b = await repository.add_session_participant(
+        session_id=session.id,
+        slot=2,
+        status=ParticipantStatus.ACTIVE,
+    )
+
+    state = await service.start_run(session.id)
+    while state.active_scene is not None:
+        await service.submit_answer(
+            run_id=state.run.id,
+            participant_id=participant_a.id,
+            content_text="quiet cafe",
+        )
+        result = await service.submit_answer(
+            run_id=state.run.id,
+            participant_id=participant_b.id,
+            content_text="riverside walk",
+        )
+        if result.run_completed:
+            final_state = result.state
+            break
+        state = result.state
+    else:
+        raise AssertionError("Runtime should complete the scenario run")
+
+    assert final_state.run.status == RunStatus.COMPLETED
+    summaries = await repository.list_run_summaries(final_state.run.id)
+    assert len(summaries) == 2
+    assert all(item.content_payload["used_fallback"] is True for item in summaries)
 
 
 async def _make_repository(db_path: Path) -> SqlAlchemyScenarioRuntimeRepository:

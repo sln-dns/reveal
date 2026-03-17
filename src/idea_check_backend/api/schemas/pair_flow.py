@@ -44,6 +44,19 @@ class RunSummary(BaseModel):
     current_scene_key: str | None
 
 
+class PlayerSummaryResponse(BaseModel):
+    id: str
+    kind: str
+    text: str
+    subject_participant_id: str | None
+    recipient_participant_id: str | None
+    focus: list[str]
+    tone: str | None
+    forbidden_styles: list[str]
+    used_fallback: bool
+    generated_at: datetime
+
+
 class QuestionStateResponse(BaseModel):
     id: str
     participant_id: str
@@ -81,6 +94,7 @@ class PairFlowStateResponse(BaseModel):
     can_reveal: bool
     completed: bool
     current_scene: SceneStateResponse | None
+    final_summary: PlayerSummaryResponse | None
     answered_current_question: bool
     updated_at: datetime
 
