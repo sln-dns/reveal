@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Idea Check Pair Flow</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <p class="eyebrow">Idea Check</p>
+        <h1>Pair flow MVP client</h1>
+        <p class="hero-copy">
+          Thin manual runner for create, join, answer, wait, reveal, and summary.
+        </p>
+      </header>
+
+      <main class="layout">
+        <section class="panel panel-accent" id="access-panel">
+          <div class="panel-heading">
+            <h2>Session access</h2>
+            <span class="badge" id="connection-badge">Disconnected</span>
+          </div>
+
+          <div class="two-column">
+            <form id="create-form" class="stack">
+              <h3>Create session</h3>
+              <label class="field">
+                <span>Your name</span>
+                <input id="create-display-name" name="display_name" placeholder="Alex" />
+              </label>
+              <button type="submit">Create new session</button>
+            </form>
+
+            <form id="join-form" class="stack">
+              <h3>Join session</h3>
+              <label class="field">
+                <span>Session ID</span>
+                <input id="join-session-id" name="session_id" placeholder="Paste session ID" required />
+              </label>
+              <label class="field">
+                <span>Your name</span>
+                <input id="join-display-name" name="display_name" placeholder="Sam" />
+              </label>
+              <button type="submit">Join session</button>
+            </form>
+          </div>
+
+          <div class="stack hidden" id="active-access">
+            <div class="meta-grid">
+              <div>
+                <span class="meta-label">Session</span>
+                <strong id="session-id-value">-</strong>
+              </div>
+              <div>
+                <span class="meta-label">Participant</span>
+                <strong id="participant-id-value">-</strong>
+              </div>
+              <div>
+                <span class="meta-label">Slot</span>
+                <strong id="participant-slot-value">-</strong>
+              </div>
+            </div>
+
+            <div class="stack">
+              <span class="meta-label">Invite link</span>
+              <div class="invite-row">
+                <input id="invite-link" readonly />
+                <button type="button" id="copy-invite-button" class="button-secondary">Copy</button>
+              </div>
+            </div>
+
+            <div class="action-row">
+              <button type="button" id="refresh-button" class="button-secondary">Refresh state</button>
+              <button type="button" id="reset-button" class="button-secondary">Reset local access</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-heading">
+            <h2>Current state</h2>
+            <span class="badge" id="state-kind-badge">No session</span>
+          </div>
+
+          <div class="summary-grid">
+            <article class="summary-card">
+              <span class="meta-label">Run</span>
+              <strong id="run-state-value">Not started</strong>
+            </article>
+            <article class="summary-card">
+              <span class="meta-label">Scene</span>
+              <strong id="scene-state-value">-</strong>
+            </article>
+            <article class="summary-card">
+              <span class="meta-label">Flags</span>
+              <strong id="flags-value">-</strong>
+            </article>
+          </div>
+
+          <div class="stack hidden" id="scene-panel">
+            <div class="scene-header">
+              <div>
+                <p class="eyebrow" id="scene-position">Scene</p>
+                <h3 id="scene-title">-</h3>
+              </div>
+              <span class="badge" id="scene-phase-badge">-</span>
+            </div>
+            <p class="scene-copy" id="scene-purpose"></p>
+            <p class="scene-copy" id="scene-intro"></p>
+          </div>
+
+          <form id="answer-form" class="stack hidden">
+            <label class="field">
+              <span id="question-label">Your question</span>
+              <textarea
+                id="answer-text"
+                rows="5"
+                placeholder="Type your answer for this scene"
+                required
+              ></textarea>
+            </label>
+            <div class="action-row">
+              <button type="submit" id="submit-answer-button">Submit answer</button>
+              <span class="helper-text" id="answer-status-text"></span>
+            </div>
+          </form>
+
+          <section class="state-card hidden" id="waiting-card">
+            <h3>Waiting for partner</h3>
+            <p id="waiting-copy">Your answer is saved. Waiting for the second participant.</p>
+          </section>
+
+          <section class="state-card hidden" id="reveal-card">
+            <div class="panel-heading">
+              <h3>Reveal</h3>
+              <button type="button" id="dismiss-reveal-button" class="button-secondary">Continue</button>
+            </div>
+            <p id="reveal-title"></p>
+            <div id="reveal-answers" class="stack"></div>
+          </section>
+
+          <section class="state-card hidden" id="summary-card">
+            <h3>Final summary</h3>
+            <p id="summary-text"></p>
+            <div class="summary-meta" id="summary-meta"></div>
+          </section>
+        </section>
+
+        <section class="panel">
+          <div class="panel-heading">
+            <h2>Raw state</h2>
+            <span class="meta-label" id="last-updated-label">Never</span>
+          </div>
+          <pre id="debug-output">No state loaded yet.</pre>
+        </section>
+      </main>
+    </div>
+
+    <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

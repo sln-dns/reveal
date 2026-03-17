@@ -46,6 +46,33 @@ uv run uvicorn idea_check_backend.main:app --reload
 
 The API is a thin layer over `PairScenarioRuntimeService`: session creation creates the first participant, second participant join starts the runtime run, `state` returns a frontend-ready current view, and answer submission returns `waiting`, `progressed`, or `completed` outcomes with reveal data when both answers are available.
 
+## MVP Web Client
+
+A minimal browser client is now served by FastAPI at `http://127.0.0.1:8000/client/`.
+
+Local manual flow:
+
+```bash
+uv sync --group dev
+uv run alembic upgrade head
+uv run uvicorn idea_check_backend.main:app --reload
+```
+
+Then:
+
+1. Open `http://127.0.0.1:8000/client/`.
+2. Create a session in the first tab.
+3. Copy the invite link or session ID into a second tab or incognito window.
+4. Join as the second participant.
+5. Answer each scene in both tabs and watch the client move through `answering`, `waiting`, `reveal`, and `completed`.
+6. On the final scene, the client shows the participant-specific summary.
+
+Notes:
+
+- The client is intentionally thin and uses polling against `GET /pair-sessions/{session_id}/participants/{participant_id}/state`.
+- Reveal is shown from the answer submission response and mirrored through browser storage so two local tabs can see it during manual testing.
+- The UI also shows the raw serialized pair state to make backend/frontend mismatches obvious during MVP iteration.
+
 ## Runtime Observability
 
 Pair flow now emits structured runtime events through the standard Python `logging` stack with a JSON formatter. The event catalog and payload schema are documented in [docs/runtime_event_logging.md](/var/folders/42/jpgf43_12bzf43rnsrfg2r800000gn/T/vibe-kanban/worktrees/1155-runtime-event-lo/Idea_check/docs/runtime_event_logging.md).
