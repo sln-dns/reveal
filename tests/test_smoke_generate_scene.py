@@ -51,6 +51,7 @@ def test_run_smoke_generation_rejects_fallback(tmp_path: Path) -> None:
 
 
 def test_run_smoke_generation_requires_provider_env() -> None:
+    # Smoke tests must stay deterministic even if a developer has real AI_* env vars locally.
     with pytest.raises(SmokeGenerationError, match="AI_PROVIDER_API_KEY, AI_PROVIDER_URL"):
         run_smoke_generation(
             settings=Settings(ai_model="test-model"),

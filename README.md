@@ -111,6 +111,7 @@ Supported request formats are selected from the URL path:
 ## Smoke generation
 
 Manual smoke flow uses the real AI provider from `.env` and is not part of the default test suite.
+Automated smoke tests clear `AI_*` env vars and must not depend on a developer-local provider config.
 
 ```bash
 uv run idea-check-smoke-generate
