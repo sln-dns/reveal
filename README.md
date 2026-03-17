@@ -67,10 +67,20 @@ Then:
 5. Answer each scene in both tabs and watch the client move through `answering`, `waiting`, `reveal`, and `completed`.
 6. On the final scene, the client shows the participant-specific summary.
 
+Manual single-page mode for prompt and UX iteration:
+
+1. Open `http://127.0.0.1:8000/client/?mode=manual` or enable `Manual test mode for both players on one page`.
+2. Enter optional names for player 1 and player 2.
+3. Click `Create dual-player session`.
+4. Use the two side-by-side player panels to submit answers independently.
+5. Watch the shared scene block, per-player waiting flags, the latest reveal card, and both final summaries on the same page.
+6. Expand `Manual raw state` when you need the serialized payload for prompt/debug iteration.
+
 Notes:
 
 - The client is intentionally thin and uses polling against `GET /pair-sessions/{session_id}/participants/{participant_id}/state`.
 - Reveal is shown from the answer submission response and mirrored through browser storage so two local tabs can see it during manual testing.
+- Manual mode is internal-only and sits on top of the same pair-flow API; the regular single-participant flow at `/client/` still works unchanged.
 - The UI also shows the raw serialized pair state to make backend/frontend mismatches obvious during MVP iteration.
 
 ## Runtime Observability

@@ -14,9 +14,191 @@
         <p class="hero-copy">
           Thin manual runner for create, join, answer, wait, reveal, and summary.
         </p>
+        <label class="mode-toggle">
+          <input type="checkbox" id="manual-mode-toggle" />
+          <span>Manual test mode for both players on one page</span>
+        </label>
       </header>
 
       <main class="layout">
+        <section class="panel panel-accent hidden" id="manual-mode-panel">
+          <div class="panel-heading">
+            <div>
+              <h2>Manual pair runner</h2>
+              <p class="section-copy">
+                Internal developer view for creating both participants, sending answers side by side,
+                and watching waiting, reveal, progression, and summary without a second tab.
+              </p>
+            </div>
+            <span class="badge" id="manual-session-badge">No session</span>
+          </div>
+
+          <form id="manual-create-form" class="stack">
+            <div class="two-column">
+              <label class="field">
+                <span>Player 1 name</span>
+                <input id="manual-player-one-name" placeholder="Alex" />
+              </label>
+              <label class="field">
+                <span>Player 2 name</span>
+                <input id="manual-player-two-name" placeholder="Sam" />
+              </label>
+            </div>
+            <div class="action-row">
+              <button type="submit" id="manual-create-button">Create dual-player session</button>
+              <button type="button" id="manual-refresh-button" class="button-secondary">
+                Refresh both states
+              </button>
+              <button type="button" id="manual-reset-button" class="button-secondary">
+                Reset manual mode
+              </button>
+            </div>
+          </form>
+
+          <div class="meta-grid hidden" id="manual-session-meta">
+            <div>
+              <span class="meta-label">Session</span>
+              <strong id="manual-session-id-value">-</strong>
+            </div>
+            <div>
+              <span class="meta-label">Participant A</span>
+              <strong id="manual-player-one-id-value">-</strong>
+            </div>
+            <div>
+              <span class="meta-label">Participant B</span>
+              <strong id="manual-player-two-id-value">-</strong>
+            </div>
+          </div>
+
+          <section class="state-card hidden" id="manual-shared-scene-card">
+            <div class="panel-heading">
+              <h3>Shared progression</h3>
+              <span class="badge" id="manual-scene-phase-badge">-</span>
+            </div>
+            <p id="manual-scene-title"></p>
+            <p class="section-copy" id="manual-scene-copy"></p>
+            <div class="summary-grid">
+              <article class="summary-card">
+                <span class="meta-label">Run</span>
+                <strong id="manual-run-value">-</strong>
+              </article>
+              <article class="summary-card">
+                <span class="meta-label">Scene</span>
+                <strong id="manual-scene-value">-</strong>
+              </article>
+              <article class="summary-card">
+                <span class="meta-label">Flags</span>
+                <strong id="manual-flags-value">-</strong>
+              </article>
+            </div>
+          </section>
+
+          <section class="state-card hidden" id="manual-reveal-card">
+            <div class="panel-heading">
+              <h3>Latest reveal</h3>
+              <button type="button" id="manual-clear-reveal-button" class="button-secondary">
+                Clear reveal
+              </button>
+            </div>
+            <p id="manual-reveal-title"></p>
+            <div class="stack" id="manual-reveal-answers"></div>
+          </section>
+
+          <div class="manual-player-grid">
+            <section class="player-panel" id="manual-player-one-panel">
+              <div class="panel-heading">
+                <div>
+                  <h3>Player 1</h3>
+                  <p class="section-copy" id="manual-player-one-name-label">Not connected</p>
+                </div>
+                <span class="badge" id="manual-player-one-state-kind">idle</span>
+              </div>
+
+              <div class="summary-grid compact-grid">
+                <article class="summary-card">
+                  <span class="meta-label">Participant</span>
+                  <strong id="manual-player-one-slot">-</strong>
+                </article>
+                <article class="summary-card">
+                  <span class="meta-label">Status</span>
+                  <strong id="manual-player-one-status">-</strong>
+                </article>
+                <article class="summary-card">
+                  <span class="meta-label">Flags</span>
+                  <strong id="manual-player-one-flags">-</strong>
+                </article>
+              </div>
+
+              <div class="stack">
+                <p class="section-copy" id="manual-player-one-question">Question will appear here.</p>
+                <label class="field">
+                  <span>Answer as player 1</span>
+                  <textarea id="manual-player-one-answer" rows="5" placeholder="Type player 1 answer"></textarea>
+                </label>
+                <div class="action-row">
+                  <button type="button" id="manual-player-one-submit">Submit as player 1</button>
+                  <span class="helper-text" id="manual-player-one-helper"></span>
+                </div>
+              </div>
+
+              <section class="state-card hidden" id="manual-player-one-summary-card">
+                <h4>Final summary for player 1</h4>
+                <p id="manual-player-one-summary-text"></p>
+              </section>
+            </section>
+
+            <section class="player-panel" id="manual-player-two-panel">
+              <div class="panel-heading">
+                <div>
+                  <h3>Player 2</h3>
+                  <p class="section-copy" id="manual-player-two-name-label">Not connected</p>
+                </div>
+                <span class="badge" id="manual-player-two-state-kind">idle</span>
+              </div>
+
+              <div class="summary-grid compact-grid">
+                <article class="summary-card">
+                  <span class="meta-label">Participant</span>
+                  <strong id="manual-player-two-slot">-</strong>
+                </article>
+                <article class="summary-card">
+                  <span class="meta-label">Status</span>
+                  <strong id="manual-player-two-status">-</strong>
+                </article>
+                <article class="summary-card">
+                  <span class="meta-label">Flags</span>
+                  <strong id="manual-player-two-flags">-</strong>
+                </article>
+              </div>
+
+              <div class="stack">
+                <p class="section-copy" id="manual-player-two-question">Question will appear here.</p>
+                <label class="field">
+                  <span>Answer as player 2</span>
+                  <textarea id="manual-player-two-answer" rows="5" placeholder="Type player 2 answer"></textarea>
+                </label>
+                <div class="action-row">
+                  <button type="button" id="manual-player-two-submit">Submit as player 2</button>
+                  <span class="helper-text" id="manual-player-two-helper"></span>
+                </div>
+              </div>
+
+              <section class="state-card hidden" id="manual-player-two-summary-card">
+                <h4>Final summary for player 2</h4>
+                <p id="manual-player-two-summary-text"></p>
+              </section>
+            </section>
+          </div>
+
+          <section class="panel nested-panel">
+            <div class="panel-heading">
+              <h3>Manual raw state</h3>
+              <span class="meta-label" id="manual-last-updated-label">Never</span>
+            </div>
+            <pre id="manual-debug-output">Manual mode is not initialized.</pre>
+          </section>
+        </section>
+
         <section class="panel panel-accent" id="access-panel">
           <div class="panel-heading">
             <h2>Session access</h2>
@@ -78,7 +260,7 @@
           </div>
         </section>
 
-        <section class="panel">
+        <section class="panel" id="current-state-panel">
           <div class="panel-heading">
             <h2>Current state</h2>
             <span class="badge" id="state-kind-badge">No session</span>
@@ -148,7 +330,7 @@
           </section>
         </section>
 
-        <section class="panel">
+        <section class="panel" id="raw-state-panel">
           <div class="panel-heading">
             <h2>Raw state</h2>
             <span class="meta-label" id="last-updated-label">Never</span>
