@@ -56,9 +56,9 @@ async def _test_pair_flow_emits_runtime_events_across_happy_path(tmp_path: Path)
         llm_client=LLMServiceClient(
             transport=lambda _prompt: json.dumps(
                 {
-                    "intro_text": "Logged intro",
-                    "questions": ["Logged question one?", "Logged question two?"],
-                    "transition_text": "Logged transition",
+                    "intro_text": "Событие генерации записало русское вступление.",
+                    "questions": ["Какой формат тебе ближе?", "Что сразу создаёт лёгкость?"],
+                    "transition_text": "Событие генерации записало русский переход.",
                 }
             )
         ),

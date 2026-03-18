@@ -1,11 +1,11 @@
 {
   "schema_version": "0.1",
   "scenario_id": "date_route_mvp",
-  "scenario_name": "Marshrut Svidaniya",
+  "scenario_name": "Маршрут свидания",
   "scenario_type": "date_route",
   "status": "draft",
-  "description": "MVP-karakas besplatnogo scenariya dlya dvoih igrokov v dating-formate.",
-  "product_goal": "Pomoch pare bystro pochat znakomstvo, pochuvstvovat vibe drug druga i poluchit temy dlya prodolzheniya obshcheniya.",
+  "description": "MVP-каркас сценария для двух игроков в формате лёгкого дейтинга.",
+  "product_goal": "Помочь паре быстро начать знакомство, почувствовать вайб друг друга и получить темы для продолжения общения.",
   "generation_architecture": {
     "engine_required_sections": [
       "schema_version",
@@ -61,12 +61,12 @@
       "continuation"
     ],
     "stage_purposes": {
-      "warm_up": "Snyat startovoe napryazhenie i bystro vvesti v igru bez tyazheloy refleksii.",
-      "taste": "Pokazat bazovye predpochteniya, atmosferu i pervyy vibe cheloveka.",
-      "rhythm": "Proyavit temp, stil dvizheniya po situacii i komfortnyy format vechera.",
-      "comfort": "Pereyti k oshchushcheniyu uyuta, vnimaniya i prijatnogo kontakta bez uyazvimosti.",
-      "attraction": "Myagko podsvetit, chto tseplyaet i delaet kontakt lichno interesnym.",
-      "continuation": "Postroit estestvennyy most v dalneyshee obshchenie vne igry."
+      "warm_up": "Снять стартовое напряжение и быстро втянуть в игру без тяжёлой рефлексии.",
+      "taste": "Показать базовые предпочтения, атмосферу и первый вайб человека.",
+      "rhythm": "Проявить темп, стиль движения по ситуации и комфортный формат вечера.",
+      "comfort": "Перейти к ощущению уюта, внимания и приятного контакта без уязвимости.",
+      "attraction": "Мягко подсветить, что цепляет и делает контакт лично интересным.",
+      "continuation": "Построить естественный мост в дальнейшее общение вне игры."
     }
   },
   "session_model": {
@@ -96,7 +96,7 @@
   "progression": {
     "unit": "scene",
     "show_progress_to_users": true,
-    "progress_label_template": "Scene {current} of {total}",
+    "progress_label_template": "Сцена {current} из {total}",
     "interruption_safe": true
   },
   "scene_types": [
@@ -152,13 +152,13 @@
       "scene_id": "scene_01_intro",
       "scene_type": "intro",
       "psychological_stage": "warm_up",
-      "title": "Start of Route",
-      "purpose": "Dat korotkiy kontekst i zapustit marshrut bez dolgogo onboarding.",
+      "title": "Старт маршрута",
+      "purpose": "Дать короткий контекст и запустить маршрут без долгого онбординга.",
       "ladder_stages": [
-        "Warm-up",
-        "Taste"
+        "Разогрев",
+        "Вкус"
       ],
-      "psychological_goal": "Snyat startovoe napryazhenie, dat pervyy ochen legkiy otvet i myagko perevesti igroka k signalu o vibe i vkuse.",
+      "psychological_goal": "Снять стартовое напряжение, дать первый очень лёгкий ответ и мягко перевести игрока к сигналу о вайбе и вкусе.",
       "allowed_question_families": [
         "very_light_vibe",
         "start_preference",
@@ -172,10 +172,10 @@
       "question_count_target": 2,
       "entry_text_mode": "generated_from_world_and_tone",
       "question_templates": [
-        "Kakoy vibe dlya takogo vechera tebe blizhe?",
-        "S chem tebe legche nachat takoe priklyuchenie?"
+        "Какой вайб для такого вечера тебе ближе?",
+        "С чего тебе легче начать такое приключение?"
       ],
-      "transition_goal": "Igroki ponyali mehaniku i gotovy pereyti k bolee soderzhatelnomu vyboru napravleniya.",
+      "transition_goal": "Игроки поняли механику и готовы перейти к более содержательному выбору направления.",
       "branch_outcomes": {
         "default_next_scene_id": "scene_02_direction"
       }
@@ -184,13 +184,13 @@
       "scene_id": "scene_02_direction",
       "scene_type": "direction_choice",
       "psychological_stage": "taste",
-      "title": "Pick the Vibe",
-      "purpose": "Bystro proyavit vkus, sredu i atmosferu, a zatem myagko perevesti znakomstvo k tempu i stilyu marshruta.",
+      "title": "Поймать вайб",
+      "purpose": "Быстро проявить вкус, среду и атмосферу, а затем мягко перевести знакомство к темпу и стилю маршрута.",
       "ladder_stages": [
-        "Taste",
-        "Rhythm"
+        "Вкус",
+        "Ритм"
       ],
-      "psychological_goal": "Perevesti znakomstvo ot obschego vibe k tempu, stilyu dvizheniya i pervomu meaningful sovpadeniyu ili razlichiyu.",
+      "psychological_goal": "Перевести знакомство от общего вайба к темпу, стилю движения и первому осмысленному совпадению или различию.",
       "allowed_question_families": [
         "micro_preferences",
         "atmosphere_and_setting",
@@ -205,11 +205,11 @@
       "question_count_target": 3,
       "entry_text_mode": "generated",
       "question_templates": [
-        "Kakoe nachalo dlya takogo marshruta tebe blizhe vsego?",
-        "Kakaya atmosfera zdes bystro delaet vse bolee tvoim?",
-        "Kuda tebya tyanet v takoy istorii chisto po oshchushcheniyu?"
+        "Какое начало для такого маршрута тебе ближе всего?",
+        "Какая атмосфера здесь быстро делает всё более твоим?",
+        "Куда тебя тянет в такой истории чисто по ощущению?"
       ],
-      "transition_goal": "Poluchit signal o stile marshruta i vybrat vetku sovpadenie ili kompromiss.",
+      "transition_goal": "Получить сигнал о стиле маршрута и выбрать ветку: совпадение или компромисс.",
       "branch_outcomes": {
         "if_match": "scene_03_venue",
         "if_difference": "scene_03_compromise"
@@ -219,13 +219,13 @@
       "scene_id": "scene_03_venue",
       "scene_type": "venue_choice",
       "psychological_stage": "rhythm",
-      "title": "Find the Pace",
-      "purpose": "Perevesti sovpavshiy vibe v ponyatnyy ritm, temp i stil dvizheniya, a takzhe pokazat pervye signaly povedeniya v situacii.",
+      "title": "Найти ритм",
+      "purpose": "Перевести совпавший вайб в понятный ритм, темп и стиль движения, а также показать первые сигналы поведения в ситуации.",
       "ladder_stages": [
-        "Rhythm",
-        "Behavior"
+        "Ритм",
+        "Поведение"
       ],
-      "psychological_goal": "Prevratit sovpadenie vo vovlekayuschuyu sovmestnuyu scenu i pokazat kak chelovek vedet sebya v prijatnoy situacii.",
+      "psychological_goal": "Превратить совпадение в вовлекающую совместную сцену и показать, как человек ведёт себя в приятной ситуации.",
       "allowed_question_families": [
         "behavioral_habits",
         "social_contact_style",
@@ -240,11 +240,11 @@
       "question_count_target": 4,
       "entry_text_mode": "generated",
       "question_templates": [
-        "V takom meste tebe priyatnee srazu dvigatsya dalshe ili chut osmotretsya?",
-        "Tebe blizhe, kogda vecher skladyvaetsya sam ili kogda u nego uzhe est legkiy plan?",
-        "Esli poyavlyaetsya neozhidannyy povorot, ty skoree podhvatish ego ili ostaneshsya v tekushchem ritme?"
+        "В таком месте тебе приятнее сразу двигаться дальше или чуть осмотреться?",
+        "Тебе ближе, когда вечер складывается сам или когда у него уже есть лёгкий план?",
+        "Если появляется неожиданный поворот, ты скорее подхватишь его или останешься в текущем ритме?"
       ],
-      "transition_goal": "Pokazat povedenie vnutri sceny i podgotovit bolee lichnuyu pauzu bez poteri legkosti.",
+      "transition_goal": "Показать поведение внутри сцены и подготовить более личную паузу без потери лёгкости.",
       "branch_outcomes": {
         "default_next_scene_id": "scene_04_pause"
       }
@@ -253,13 +253,13 @@
       "scene_id": "scene_03_compromise",
       "scene_type": "venue_choice",
       "psychological_stage": "rhythm",
-      "title": "Third Option",
-      "purpose": "Myagko oboyti razlichie cherez tretij variant i vse ravno proyavit komfortnyy ritm i gibkost dlya oboih.",
+      "title": "Третий вариант",
+      "purpose": "Мягко обойти различие через третий вариант и всё равно проявить комфортный ритм и гибкость для обоих.",
       "ladder_stages": [
-        "Rhythm",
-        "Behavior"
+        "Ритм",
+        "Поведение"
       ],
-      "psychological_goal": "Sdelat razlichie igrovym, a ne problemnym, i pokazat gibkost cheloveka v novoy ili kompromissnoy situacii.",
+      "psychological_goal": "Сделать различие игровым, а не проблемным, и показать гибкость человека в новой или компромиссной ситуации.",
       "allowed_question_families": [
         "pace_and_energy",
         "planning_versus_spontaneity",
@@ -274,11 +274,11 @@
       "question_count_target": 3,
       "entry_text_mode": "generated",
       "question_templates": [
-        "Vy vybrali raznye napravleniya. Kakoy format etogo tretiego varianta tebe legche prinyat?",
-        "Chto sdelalo by etu ostanovku komfortnoy po tempu imenno dlya tebya?",
-        "Tut tebe blizhe ostorozhno voiti v moment ili srazu poehat dal'she?"
+        "Вы выбрали разные направления. Какой формат этого третьего варианта тебе легче принять?",
+        "Что сделало бы эту остановку комфортной по темпу именно для тебя?",
+        "Тут тебе ближе осторожно войти в момент или сразу поехать дальше?"
       ],
-      "transition_goal": "Sohranit tempo marshruta i dobavit signal o stile reagirovaniya na kompromiss.",
+      "transition_goal": "Сохранить темп маршрута и добавить сигнал о стиле реакции на компромисс.",
       "branch_outcomes": {
         "default_next_scene_id": "scene_04_pause"
       }
@@ -287,13 +287,13 @@
       "scene_id": "scene_04_pause",
       "scene_type": "comfort",
       "psychological_stage": "comfort",
-      "title": "Comfort Signal",
-      "purpose": "Pereyti k stupeni comfort i pokazat, kak chelovek chuvstvuet uyut, vnimanie i prijatnyy kontakt bez tyazheloy refleksii.",
+      "title": "Сигнал комфорта",
+      "purpose": "Перейти к ступени комфорта и показать, как человек чувствует уют, внимание и приятный контакт без тяжёлой рефлексии.",
       "ladder_stages": [
-        "Behavior",
-        "Warmth"
+        "Поведение",
+        "Тепло"
       ],
-      "psychological_goal": "Zamedlit marshrut, smyagchit kontakt i perevesti fokus na teplo, komfort i lichnye detali.",
+      "psychological_goal": "Замедлить маршрут, смягчить контакт и перевести фокус на тепло, комфорт и личные детали.",
       "allowed_question_families": [
         "social_contact_style",
         "small_joys",
@@ -307,11 +307,11 @@
       "question_count_target": 4,
       "entry_text_mode": "generated",
       "question_templates": [
-        "V kakoy moment ty obychno ponimaesh: mne zdes po-nastoyashchemu komfortno?",
-        "Chto v takom epizode delaet kontakt bolee teplym dlya tebya?",
-        "Kakoy nebolshoy znak vnimaniya zdes schityvalsya by osobenno prijatno?"
+        "В какой момент ты обычно понимаешь: мне здесь по-настоящему комфортно?",
+        "Что в таком эпизоде делает контакт более тёплым для тебя?",
+        "Какой небольшой знак внимания здесь считался бы особенно приятным?"
       ],
-      "transition_goal": "Sformirovat oshchushchenie chelovechnosti i podgotovit myagkiy perehod k lichnomu interesu.",
+      "transition_goal": "Сформировать ощущение человечности и подготовить мягкий переход к личному интересу.",
       "branch_outcomes": {
         "default_next_scene_id": "scene_05_soft_reveal"
       }
@@ -320,13 +320,13 @@
       "scene_id": "scene_05_soft_reveal",
       "scene_type": "soft_reveal",
       "psychological_stage": "attraction",
-      "title": "Closer Signal",
-      "purpose": "Perevesti comfort v myagkuyu zonu simpatij i podsvetit, chto imenno tseplyaet v kontakte i delaet ego lichno interesnym.",
+      "title": "Сигнал сближения",
+      "purpose": "Перевести комфорт в мягкую зону симпатии и подсветить, что именно цепляет в контакте и делает его лично интересным.",
       "ladder_stages": [
-        "Warmth",
-        "Attraction"
+        "Тепло",
+        "Притяжение"
       ],
-      "psychological_goal": "Akkuratno perevesti kontakt ot komforta k interesu i podsvetit chto mozhet tseplyat v cheloveke bez nelovkosti.",
+      "psychological_goal": "Аккуратно перевести контакт от комфорта к интересу и подсветить, что может цеплять в человеке без неловкости.",
       "allowed_question_families": [
         "care_and_attention",
         "attraction_triggers",
@@ -340,11 +340,11 @@
       "question_count_target": 3,
       "entry_text_mode": "generated",
       "question_templates": [
-        "Chto v cheloveke mozhet sdelat takoy marshrut lichno interesnym dlya tebya?",
-        "Kakoy moment zdes ostavil by samoe prijatnoe poslevkusie?",
-        "Chto moglo by neozhidanno zacepit tebya uzhe na etom etape?"
+        "Что в человеке может сделать такой маршрут лично интересным для тебя?",
+        "Какой момент здесь оставил бы самое приятное послевкусие?",
+        "Что могло бы неожиданно зацепить тебя уже на этом этапе?"
       ],
-      "transition_goal": "Sobrat nablyudeniya dlya finalnogo summary i ostavit oshchushchenie lichnogo interesa.",
+      "transition_goal": "Собрать наблюдения для финального саммари и оставить ощущение личного интереса.",
       "branch_outcomes": {
         "default_next_scene_id": "scene_06_finale"
       }
@@ -353,12 +353,12 @@
       "scene_id": "scene_06_finale",
       "scene_type": "finale",
       "psychological_stage": "continuation",
-      "title": "Route End",
-      "purpose": "Zavershit marshrut, sborkoy nabljudeniy i sohranit most v realnoe obshchenie.",
+      "title": "Финал маршрута",
+      "purpose": "Завершить маршрут, собрать наблюдения и сохранить мост в реальное общение.",
       "ladder_stages": [
-        "Continuation"
+        "Продолжение"
       ],
-      "psychological_goal": "Zakryt marshrut s oshchushcheniem zavershennosti i pomoch pare estestvenno pereyti v realnoe prodolzhenie obshcheniya.",
+      "psychological_goal": "Закрыть маршрут с ощущением завершённости и помочь паре естественно перейти в реальное продолжение общения.",
       "allowed_question_families": [
         "shared_future_continuation",
         "next_conversation_topics",
@@ -372,10 +372,10 @@
       "question_count_target": 2,
       "entry_text_mode": "generated",
       "question_templates": [
-        "Chto iz etogo marshruta ty by zabralsya v realnuyu vstrechu?",
-        "Kakuyu sleduyushchuyu temu ty by s radostyu prodolzhil uzhe v chate ili pri vstreche?"
+        "Что из этого маршрута ты бы забрал в реальную встречу?",
+        "Какую следующую тему ты бы с радостью продолжил уже в чате или при встрече?"
       ],
-      "transition_goal": "Ne otkryvat novuyu temu, a vyvesti paru v vneshniy razgovor i summary.",
+      "transition_goal": "Не открывать новую тему, а вывести пару во внешний разговор и финальное саммари.",
       "branch_outcomes": {
         "end_scenario": true
       }

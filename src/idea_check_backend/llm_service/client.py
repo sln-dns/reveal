@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from dataclasses import dataclass
 from typing import Callable
 from urllib.parse import urlparse
@@ -29,6 +30,8 @@ class _SceneGenerationResponse(BaseModel):
         cleaned = value.strip()
         if not cleaned:
             raise ValueError("text fields must not be empty")
+        if not _contains_cyrillic(cleaned):
+            raise ValueError("text fields must be written in Russian")
         return cleaned
 
     @field_validator("questions")
@@ -37,6 +40,8 @@ class _SceneGenerationResponse(BaseModel):
         cleaned_questions = [question.strip() for question in value if question.strip()]
         if len(cleaned_questions) != len(value):
             raise ValueError("questions must not be empty")
+        if any(not _contains_cyrillic(question) for question in cleaned_questions):
+            raise ValueError("questions must be written in Russian")
         return cleaned_questions
 
 
@@ -281,33 +286,33 @@ class LLMServiceClient:
             return json.dumps(
                 {
                     "intro_text": (
-                        "You are at the start of the route. "
-                        "Pick an easy vibe and enter the scene lightly."
+                        "Вы только заходите в этот маршрут. "
+                        "Поймайте лёгкое настроение и начните без напряжения."
                     ),
                     "questions": [
-                        "What kind of evening mood feels easiest for you right now?",
-                        "What helps you enter a new conversation without tension?",
+                        "Какое настроение для такого вечера тебе сейчас ближе всего?",
+                        "Что помогает тебе легко войти в новый разговор?",
                     ],
                     "transition_text": (
-                        "Nice. The route has a direction now, "
-                        "so the next choice can get a bit more specific."
+                        "Отлично, общее направление уже чувствуется, "
+                        "так что дальше можно стать чуть конкретнее."
                     ),
                 }
             )
         return json.dumps(
             {
                 "intro_text": (
-                    "The route starts taking shape. "
-                    "Now the mood needs a clearer direction."
+                    "Маршрут начинает складываться. "
+                    "Теперь можно точнее поймать его ритм и атмосферу."
                 ),
                 "questions": [
-                    "Which beginning feels most natural for this kind of route?",
-                    "What atmosphere quickly makes a place feel like yours?",
-                    "Where does your attention go first in a scene like this?",
+                    "Какое начало для такого маршрута кажется тебе самым естественным?",
+                    "Какая атмосфера быстро делает место для тебя своим?",
+                    "На что ты первым делом обращаешь внимание в такой сцене?",
                 ],
                 "transition_text": (
-                    "Good. There is enough signal here "
-                    "to move toward pace and chemistry."
+                    "Хорошо, здесь уже достаточно сигнала, "
+                    "чтобы перейти к темпу и ощущению контакта."
                 ),
             }
         )
@@ -348,7 +353,7 @@ class LLMServiceClient:
         intro_title = payload.scene_title or payload.scene_type.replace("_", " ").title()
         intro_text = (
             f"{intro_title}. {payload.scene_purpose} "
-            f"Tone: {payload.selected_tone}. World: {payload.selected_world}."
+            f"Тон сцены: {payload.selected_tone}. Мир: {payload.selected_world}."
         )
         transition_text = payload.transition_goal
         return SceneGeneration(
@@ -358,3 +363,10 @@ class LLMServiceClient:
             transition_text=transition_text,
             used_fallback=True,
         )
+
+
+_CYRILLIC_PATTERN = re.compile(r"[А-Яа-яЁё]")
+
+
+def _contains_cyrillic(value: str) -> bool:
+    return bool(_CYRILLIC_PATTERN.search(value))

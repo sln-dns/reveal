@@ -21,7 +21,7 @@ DEFAULT_OUTPUT_ROOT = REPOSITORY_ROOT / "artifacts" / "smoke_generation"
 
 
 class SmokeGenerationError(RuntimeError):
-    """Raised when the manual smoke flow cannot complete successfully."""
+    """Исключение для неуспешного ручного smoke-прогона."""
 
 
 @dataclass
@@ -39,22 +39,22 @@ class SmokeGenerationArtifact:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Run a manual smoke generation against the configured AI provider."
+        description="Запустить ручной smoke-прогон генерации через настроенного AI-провайдера."
     )
     parser.add_argument(
         "--scenario",
         default="date_route",
-        help="Scenario blueprint key. Defaults to date_route.",
+        help="Ключ сценарного blueprint. По умолчанию: date_route.",
     )
     parser.add_argument(
         "--scene-id",
         default=None,
-        help="Optional supported scene id. Defaults to the first supported scene in the blueprint.",
+        help="Необязательный scene id. По умолчанию берётся первая поддерживаемая сцена из blueprint.",
     )
     parser.add_argument(
         "--output-dir",
         default=str(DEFAULT_OUTPUT_ROOT),
-        help=f"Directory where smoke artifacts are written. Defaults to {DEFAULT_OUTPUT_ROOT}.",
+        help=f"Директория для smoke-артефактов. По умолчанию: {DEFAULT_OUTPUT_ROOT}.",
     )
     args = parser.parse_args()
 
@@ -65,10 +65,10 @@ def main() -> int:
             output_root=Path(args.output_dir),
         )
     except SmokeGenerationError as exc:
-        print(f"Smoke generation failed: {exc}", file=sys.stderr)
+        print(f"Smoke-прогон генерации завершился ошибкой: {exc}", file=sys.stderr)
         return 1
 
-    print(f"Smoke generation succeeded. Artifacts saved to {artifact_dir}")
+    print(f"Smoke-прогон прошёл успешно. Артефакты сохранены в {artifact_dir}")
     return 0
 
 
@@ -89,9 +89,9 @@ def run_smoke_generation(
     result = client.generate_scene(payload)
 
     if result.generation.used_fallback:
-        details = result.log.validation_error or "provider response was replaced by fallback"
+        details = result.log.validation_error or "ответ провайдера был заменён fallback-генерацией"
         raise SmokeGenerationError(
-            "real provider call did not produce a valid scene JSON without fallback: "
+            "реальный вызов провайдера не вернул валидный JSON сцены без fallback: "
             f"{details}"
         )
 
@@ -126,9 +126,9 @@ def _validate_settings(settings: Settings) -> None:
     ]
     if missing_vars:
         raise SmokeGenerationError(
-            "missing required AI configuration: "
+            "не хватает обязательной AI-конфигурации: "
             + ", ".join(missing_vars)
-            + ". Populate them in .env or your shell before running the smoke flow."
+            + ". Заполните их в .env или в окружении перед запуском smoke-прогона."
         )
 
 
@@ -142,9 +142,9 @@ def _select_scene(
     ]
     if not supported_scenes:
         raise SmokeGenerationError(
-            "scenario "
-            f"'{blueprint.scenario_id}' does not contain a scene supported by "
-            "the current LLM client"
+            "сценарий "
+            f"'{blueprint.scenario_id}' не содержит сцены, которую поддерживает "
+            "текущий LLM-клиент"
         )
 
     if requested_scene_id is None:
@@ -156,8 +156,8 @@ def _select_scene(
 
     supported_ids = ", ".join(scene.scene_id for scene in supported_scenes)
     raise SmokeGenerationError(
-        f"scene '{requested_scene_id}' is not supported for smoke generation. "
-        f"Supported scenes: {supported_ids}"
+        f"сцена '{requested_scene_id}' не поддерживается для smoke-генерации. "
+        f"Поддерживаемые сцены: {supported_ids}"
     )
 
 
@@ -187,7 +187,7 @@ def _write_artifacts(artifact_dir: Path, artifact: SmokeGenerationArtifact) -> N
     markdown_path = artifact_dir / "result.md"
 
     json_path.write_text(
-        json.dumps(asdict(artifact), indent=2, ensure_ascii=True) + "\n",
+        json.dumps(asdict(artifact), indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
     markdown_path.write_text(_render_markdown(artifact), encoding="utf-8")
@@ -200,19 +200,19 @@ def _render_markdown(artifact: SmokeGenerationArtifact) -> str:
     prompt = artifact.log["prompt"].strip()
     raw_response = artifact.log["raw_response"].strip()
     return (
-        f"# Smoke Generation Result\n\n"
-        f"- Generated at: `{artifact.generated_at}`\n"
-        f"- Scenario: `{artifact.scenario_key}`\n"
-        f"- Scene ID: `{artifact.scene_id}`\n"
-        f"- Model: `{artifact.model}`\n"
-        f"- Provider URL: `{artifact.provider_url}`\n"
-        f"- Artifact directory: `{artifact.artifact_dir}`\n\n"
-        f"## Scene Output\n\n"
-        f"**Intro**\n\n{generation['intro_text']}\n\n"
-        f"**Questions**\n\n{questions_block}\n\n"
-        f"**Transition**\n\n{generation['transition_text']}\n\n"
-        f"## Prompt\n\n```text\n{prompt}\n```\n\n"
-        f"## Raw Response\n\n```text\n{raw_response}\n```\n"
+        f"# Результат smoke-генерации\n\n"
+        f"- Время генерации: `{artifact.generated_at}`\n"
+        f"- Сценарий: `{artifact.scenario_key}`\n"
+        f"- ID сцены: `{artifact.scene_id}`\n"
+        f"- Модель: `{artifact.model}`\n"
+        f"- URL провайдера: `{artifact.provider_url}`\n"
+        f"- Директория артефактов: `{artifact.artifact_dir}`\n\n"
+        f"## Сгенерированный контент\n\n"
+        f"**Вступление**\n\n{generation['intro_text']}\n\n"
+        f"**Вопросы**\n\n{questions_block}\n\n"
+        f"**Переход**\n\n{generation['transition_text']}\n\n"
+        f"## Промпт\n\n```text\n{prompt}\n```\n\n"
+        f"## Сырой ответ\n\n```text\n{raw_response}\n```\n"
     )
 
 

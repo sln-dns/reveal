@@ -4,9 +4,11 @@ from idea_check_backend.shared_types.scenario import SceneGenerationPayload
 class ScenePromptBuilder:
     def build(self, payload: SceneGenerationPayload) -> str:
         allowed_question_count = min(3, payload.question_count_target)
-        title_line = f"Title: {payload.scene_title}" if payload.scene_title else "Title: n/a"
-        previous_answers = payload.previous_answers_summary or "No previous answers yet."
-        branching_context = payload.branching_context or "No branching context yet."
+        title_line = (
+            f"Название сцены: {payload.scene_title}" if payload.scene_title else "Название сцены: n/a"
+        )
+        previous_answers = payload.previous_answers_summary or "Предыдущих ответов пока нет."
+        branching_context = payload.branching_context or "Контекст ветвления пока не задан."
         principles = ", ".join(payload.experience_principles)
         ladder = ", ".join(payload.ladder_stages)
         allowed_families = ", ".join(payload.allowed_question_families)
@@ -14,27 +16,31 @@ class ScenePromptBuilder:
         templates = "\n".join(f"- {template}" for template in payload.question_templates)
 
         return (
-            "You generate short scene content for a two-player dating scenario.\n"
-            "Return valid JSON only with keys: intro_text, questions, transition_text.\n"
-            f"Questions array must contain 1-{allowed_question_count} short questions.\n"
-            "Keep the tone warm, playful, and concise.\n"
-            "Do not add markdown, explanations, or extra keys.\n\n"
+            "Ты создаёшь короткий пользовательский текст для сцены сценария знакомства на двух игроков.\n"
+            "Отвечай только на русском языке.\n"
+            "Не смешивай русский и английский без явной необходимости.\n"
+            "Не используй англоязычные labels, headings или служебные подписи в пользовательском тексте.\n"
+            "Тон должен быть живым, тёплым, лёгким и естественным, без сухого переводного звучания.\n"
+            "Верни только валидный JSON с ключами: intro_text, questions, transition_text.\n"
+            f"В массиве questions должно быть от 1 до {allowed_question_count} коротких вопросов.\n"
+            "Все значения внутри JSON должны быть написаны по-русски.\n"
+            "Не добавляй markdown, объяснения, комментарии и лишние ключи.\n\n"
             f"Scene ID: {payload.scene_id}\n"
             f"Scene type: {payload.scene_type}\n"
             f"{title_line}\n"
-            f"Product goal: {payload.product_goal}\n"
-            f"Selected world: {payload.selected_world}\n"
-            f"Selected tone: {payload.selected_tone}\n"
-            f"Experience principles: {principles}\n"
-            f"Scene purpose: {payload.scene_purpose}\n"
-            f"Psychological goal: {payload.psychological_goal}\n"
-            f"Ladder stages: {ladder}\n"
-            f"Allowed question families: {allowed_families}\n"
-            f"Forbidden question families: {forbidden_families}\n"
-            f"Transition goal: {payload.transition_goal}\n"
-            f"Max answer length: {payload.max_answer_length_chars} characters\n"
-            f"Previous answers summary: {previous_answers}\n"
-            f"Branching context: {branching_context}\n"
-            "Question inspiration templates:\n"
+            f"Продуктовая цель: {payload.product_goal}\n"
+            f"Выбранный мир: {payload.selected_world}\n"
+            f"Выбранный тон: {payload.selected_tone}\n"
+            f"Принципы опыта: {principles}\n"
+            f"Задача сцены: {payload.scene_purpose}\n"
+            f"Психологическая цель: {payload.psychological_goal}\n"
+            f"Ступени сценарной лестницы: {ladder}\n"
+            f"Разрешённые семейства вопросов: {allowed_families}\n"
+            f"Запрещённые семейства вопросов: {forbidden_families}\n"
+            f"Цель перехода: {payload.transition_goal}\n"
+            f"Максимальная длина ответа: {payload.max_answer_length_chars} символов\n"
+            f"Краткая сводка прошлых ответов: {previous_answers}\n"
+            f"Контекст ветвления: {branching_context}\n"
+            "Шаблоны-вдохновения для вопросов:\n"
             f"{templates}\n"
         )

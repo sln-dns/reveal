@@ -32,6 +32,16 @@ def test_settings_load_ai_provider_fields(tmp_path: Path) -> None:
     assert settings.llm_provider == "provider.example"
 
 
+def test_llm_service_prompt_explicitly_requires_russian() -> None:
+    client = LLMServiceClient()
+
+    prompt = client.build_prompt(_build_payload())
+
+    assert "Отвечай только на русском языке." in prompt
+    assert "Не смешивай русский и английский" in prompt
+    assert "Все значения внутри JSON должны быть написаны по-русски." in prompt
+
+
 def test_llm_service_calls_provider_with_responses_api_payload() -> None:
     requests: list[dict[str, object]] = []
 
@@ -54,12 +64,12 @@ def test_llm_service_calls_provider_with_responses_api_payload() -> None:
                             {
                                 "text": json.dumps(
                                     {
-                                        "intro_text": "Provider intro",
+                                        "intro_text": "Провайдер вернул русское вступление.",
                                         "questions": [
-                                            "Question one?",
-                                            "Question two?",
+                                            "Какой формат вечера тебе сейчас ближе?",
+                                            "Что помогает тебе быстро почувствовать лёгкость?",
                                         ],
-                                        "transition_text": "Provider transition",
+                                        "transition_text": "Провайдер вернул русский переход.",
                                     }
                                 )
                             }
@@ -98,9 +108,12 @@ def test_llm_service_calls_provider_with_responses_api_payload() -> None:
         thread.join()
 
     assert result.generation.used_fallback is False
-    assert result.generation.intro_text == "Provider intro"
-    assert result.generation.questions == ["Question one?", "Question two?"]
-    assert result.generation.transition_text == "Provider transition"
+    assert result.generation.intro_text == "Провайдер вернул русское вступление."
+    assert result.generation.questions == [
+        "Какой формат вечера тебе сейчас ближе?",
+        "Что помогает тебе быстро почувствовать лёгкость?",
+    ]
+    assert result.generation.transition_text == "Провайдер вернул русский переход."
     assert requests == [
         {
             "path": "/v1/responses",
@@ -130,25 +143,44 @@ def test_llm_service_falls_back_on_provider_timeout() -> None:
     assert result.log.validation_error is not None
 
 
+def test_llm_service_falls_back_when_provider_returns_non_russian_content() -> None:
+    client = LLMServiceClient(
+        transport=lambda _prompt: json.dumps(
+            {
+                "intro_text": "Provider intro",
+                "questions": ["Question one?", "Question two?"],
+                "transition_text": "Provider transition",
+            }
+        )
+    )
+
+    result = client.generate_scene(_build_payload())
+
+    assert result.generation.used_fallback is True
+    assert result.log.used_fallback is True
+    assert result.log.validation_error is not None
+    assert "written in Russian" in result.log.validation_error
+
+
 def _build_payload() -> SceneGenerationPayload:
     return SceneGenerationPayload(
         scene_id="scene_01_intro",
         scene_type="intro",
-        scene_title="Start of Route",
-        scene_purpose="Give a short context and start the route.",
-        psychological_goal="Lower tension and begin lightly.",
-        ladder_stages=["Warm-up", "Taste"],
+        scene_title="Старт маршрута",
+        scene_purpose="Дать короткий контекст и запустить маршрут.",
+        psychological_goal="Снизить напряжение и начать легко.",
+        ladder_stages=["Разогрев", "Вкус"],
         allowed_question_families=["very_light_vibe"],
         forbidden_question_families=["self_analysis"],
         question_templates=[
-            "What kind of evening mood feels easiest for you right now?",
-            "What helps you enter a new conversation without tension?",
+            "Какое настроение вечера тебе сейчас ближе всего?",
+            "Что помогает тебе войти в новый разговор без напряжения?",
         ],
         question_count_target=2,
-        transition_goal="Move the players toward a clearer route direction.",
+        transition_goal="Подвести игроков к более ясному направлению маршрута.",
         selected_world="evening_city",
         selected_tone="playful",
-        product_goal="Help two people start talking easily.",
+        product_goal="Помочь двум людям легко начать разговор.",
         experience_principles=["low_cognitive_load", "light_playful_tone"],
         max_answer_length_chars=180,
     )

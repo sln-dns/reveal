@@ -801,7 +801,7 @@ class PairScenarioRuntimeService:
         if not answers:
             return None
         return " | ".join(
-            f"participant_{index}: {answer.content_text.strip()}"
+            f"участник_{index}: {answer.content_text.strip()}"
             for index, answer in enumerate(answers, start=1)
         )
 
@@ -813,8 +813,21 @@ class PairScenarioRuntimeService:
         if branch_reason is None and not answers:
             return None
         if branch_reason is None:
-            return f"Previous scene answers captured: {len(answers)}"
-        return f"Branch reason: {branch_reason}. Previous scene answers captured: {len(answers)}"
+            return f"С предыдущей сцены сохранено ответов: {len(answers)}"
+        return (
+            f"Причина выбора ветки: {self._localize_branch_reason(branch_reason)}. "
+            f"С предыдущей сцены сохранено ответов: {len(answers)}"
+        )
+
+    def _localize_branch_reason(self, branch_reason: str) -> str:
+        reasons = {
+            "end_scenario": "сценарий завершён",
+            "default_next_scene": "переход по стандартной следующей сцене",
+            "answers_matched": "ответы совпали",
+            "answers_differed": "ответы различались",
+            "fallback_if_match": "резервный переход по ветке совпадения",
+        }
+        return reasons.get(branch_reason, branch_reason)
 
     def _build_run_runtime_state(
         self,
@@ -977,9 +990,9 @@ class PairScenarioRuntimeService:
         snippets = [item["answer_text"] for item in answers if item["answer_text"]]
         topics = self._extract_topics(answers)
         preference_observations = [
-            f"chasto vozvrashchalsya k temam: {', '.join(snippets[:2])}"
+            f"чаще всего возвращался к темам: {', '.join(snippets[:2])}"
             if len(snippets) >= 2
-            else f"otmetil: {snippets[0]}"
+            else f"отметил: {snippets[0]}"
             for _ in [0]
             if snippets
         ]
@@ -1016,18 +1029,31 @@ class PairScenarioRuntimeService:
 
     def _extract_vibe_observations(self, snippets: list[str]) -> list[str]:
         if not snippets:
-            return ["otvechal bez yavnyh signalov, poetomu luchshe opiratsya na konkretiku iz vashego marshruta"]
+            return [
+                "отвечал без явных сигналов, поэтому лучше опираться на конкретные темы из вашего маршрута"
+            ]
 
         lowered = " ".join(snippets).casefold()
         observations: list[str] = []
-        if any(token in lowered for token in ("cafe", "tea", "coffee", "quiet", "spok", "walk")):
-            observations.append("tyanetsya k spokojnomu, ne-peregruzhennomu formatu")
-        if any(token in lowered for token in ("play", "fun", "laugh", "adventure", "game")):
-            observations.append("otzyvaetsya na legkost i igrovuyu dinamiku")
-        if any(token in lowered for token in ("slow", "pause", "soft", "gentle")):
-            observations.append("predpochitaet myagkiy temp razgovora")
+        if any(
+            token in lowered
+            for token in ("каф", "коф", "чай", "тих", "спок", "прогул", "набереж")
+        ):
+            observations.append("тянется к спокойному и не перегруженному формату")
+        if any(
+            token in lowered
+            for token in ("игр", "смеш", "весел", "приключ", "шут", "лёгк", "легк")
+        ):
+            observations.append("отзывается на лёгкость, игру и живую динамику")
+        if any(
+            token in lowered
+            for token in ("медл", "пау", "мяг", "не спеш", "спокой")
+        ):
+            observations.append("предпочитает мягкий темп разговора")
         if not observations:
-            observations.append("v otvetah chuvstvuetsya konkretnyy, prizemlennyy vibe bez pozerskih formulirovok")
+            observations.append(
+                "в ответах чувствуется конкретный, приземлённый вайб без позы и лишних украшений"
+            )
         return observations[:2]
 
     async def _generate_and_store_run_summaries(
@@ -1085,18 +1111,18 @@ class PairScenarioRuntimeService:
             participant for participant in summary_context.participants if participant.id != recipient.id
         )
         subject_context = summary_context.subjects[subject.id]
-        subject_name = subject.display_name or "Vash partner"
+        subject_name = subject.display_name or "Ваш партнёр"
         portrait = (
-            f"{subject_name} po marshrutu pokazalsya chelovekom, kotoromu blizki "
-            f"{self._join_items(subject_context.preference_observations or subject_context.topics or ['zhivye, konkretnye situacii'])}."
+            f"По этому маршруту {subject_name} показался человеком, которому близки "
+            f"{self._join_items(subject_context.preference_observations or subject_context.topics or ['живые и конкретные ситуации'])}."
         )
         vibe = (
-            "Po vibe bylo zametno, chto on/ona "
+            "По общему ощущению видно, что этот человек "
             f"{self._join_items(subject_context.vibe_observations)}."
         )
         topics = (
-            "V realnom razgovore mozhno prodolzhit: "
-            f"{self._join_items(subject_context.topics or ['samyj komfortnyj format vstrechi', 'temp i atmosfera vechera'])}."
+            "В реальном разговоре можно продолжить с тем: "
+            f"{self._join_items(subject_context.topics or ['самый комфортный формат встречи', 'темп и атмосфера вечера'])}."
         )
         return {
             "content_text": " ".join((portrait, vibe, topics)),
@@ -1119,15 +1145,15 @@ class PairScenarioRuntimeService:
             participant for participant in summary_context.participants if participant.id != recipient.id
         )
         subject_context = summary_context.subjects[subject.id]
-        subject_name = subject.display_name or "Vash partner"
+        subject_name = subject.display_name or "Ваш партнёр"
         topics = subject_context.topics or [
-            "chto emu/ey osobenno nravitsya v formate vstrechi",
-            "kakoy temp razgovora samyy komfortnyy",
+            "что ему или ей особенно нравится в формате встречи",
+            "какой темп разговора самый комфортный",
         ]
         text = (
-            f"{subject_name} ostavil teploe vpechatlenie i daval konkretnye signaly o tom, "
-            f"chto emu/ey blizko. Bez diagnozov i obobshcheniy: luchshe vsego prodolzhit "
-            f"razgovor vokrug tem {self._join_items(topics)}."
+            f"{subject_name} оставил тёплое впечатление и дал понятные сигналы о том, "
+            f"что ему или ей близко. Без диагнозов и обобщений: лучше всего продолжить "
+            f"разговор вокруг тем {self._join_items(topics)}."
         )
         return {
             "content_text": text,

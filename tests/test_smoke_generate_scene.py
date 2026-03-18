@@ -19,9 +19,9 @@ def test_run_smoke_generation_writes_artifacts(tmp_path: Path) -> None:
         ),
         transport=lambda _prompt: json.dumps(
             {
-                "intro_text": "Provider intro",
-                "questions": ["Question one?", "Question two?"],
-                "transition_text": "Provider transition",
+                "intro_text": "Провайдер вернул вступление на русском.",
+                "questions": ["Какой вечер тебе ближе?", "Что помогает тебе расслабиться?"],
+                "transition_text": "Провайдер вернул переход на русском.",
             }
         ),
     )
@@ -34,11 +34,11 @@ def test_run_smoke_generation_writes_artifacts(tmp_path: Path) -> None:
     saved_payload = json.loads(result_json.read_text(encoding="utf-8"))
     assert saved_payload["generation"]["used_fallback"] is False
     assert saved_payload["scene_id"] == "scene_01_intro"
-    assert "Provider intro" in result_md.read_text(encoding="utf-8")
+    assert "Провайдер вернул вступление на русском." in result_md.read_text(encoding="utf-8")
 
 
 def test_run_smoke_generation_rejects_fallback(tmp_path: Path) -> None:
-    with pytest.raises(SmokeGenerationError, match="without fallback"):
+    with pytest.raises(SmokeGenerationError, match="без fallback"):
         run_smoke_generation(
             output_root=tmp_path,
             settings=Settings(

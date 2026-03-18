@@ -104,6 +104,8 @@ Current domain events include:
 
 ## LLM configuration
 
+User-facing generation layer works in Russian only: scene intros, questions, transitions, fallback texts, and final summaries must be generated in natural Russian without mixing in English labels.
+
 Set provider access through env vars:
 
 ```bash
@@ -122,6 +124,7 @@ Supported request formats are selected from the URL path:
 
 Manual smoke flow uses the real AI provider from `.env` and is not part of the default test suite.
 Automated smoke tests clear `AI_*` env vars and must not depend on a developer-local provider config.
+Successful smoke output is expected to be fully Russian in all user-facing fields.
 
 ```bash
 uv run idea-check-smoke-generate

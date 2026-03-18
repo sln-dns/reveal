@@ -51,12 +51,12 @@ async def _test_runtime_service_executes_pair_flow_and_completes_run(tmp_path: P
     llm_client = LLMServiceClient(
         transport=lambda _prompt: json.dumps(
             {
-                "intro_text": "Runtime intro",
+                "intro_text": "Рантайм вернул русское вступление.",
                 "questions": [
-                    "Generated question for player one?",
-                    "Generated question for player two?",
+                    "Какой формат вечера тебе сейчас ближе?",
+                    "Что помогает тебе быстро включиться в разговор?",
                 ],
-                "transition_text": "Runtime transition",
+                "transition_text": "Рантайм вернул русский переход.",
             }
         )
     )
@@ -89,21 +89,21 @@ async def _test_runtime_service_executes_pair_flow_and_completes_run(tmp_path: P
     assert started_state.active_scene.phase == "collecting_answers"
     assert (
         started_state.active_scene.scene_instance.generated_content["intro_text"]
-        == "Runtime intro"
+        == "Рантайм вернул русское вступление."
     )
     assert (
         started_state.active_scene.scene_instance.generated_content["transition_text"]
-        == "Runtime transition"
+        == "Рантайм вернул русский переход."
     )
     assert started_state.active_scene.scene_instance.generated_content["used_fallback"] is False
     assert len(started_state.active_scene.questions) == 2
     assert (
         started_state.active_scene.questions[0].prompt_text
-        == "Generated question for player one?"
+        == "Какой формат вечера тебе сейчас ближе?"
     )
     assert (
         started_state.active_scene.questions[1].prompt_text
-        == "Generated question for player one?"
+        == "Какой формат вечера тебе сейчас ближе?"
     )
     assert all(question.answer_text is None for question in started_state.active_scene.questions)
 
@@ -143,7 +143,7 @@ async def _test_runtime_service_executes_pair_flow_and_completes_run(tmp_path: P
         second_answer_result.state.active_scene.scene_instance.generated_content["generation_payload"][
             "previous_answers_summary"
         ]
-        == "participant_1: Quiet cafe | participant_2: Riverside walk"
+        == "участник_1: Quiet cafe | участник_2: Riverside walk"
     )
 
     completed_first_scene = await repository.get_scene_instance(first_scene_id)
@@ -259,8 +259,8 @@ async def _test_runtime_service_falls_back_when_llm_response_is_invalid(tmp_path
     assert generated_content["used_fallback"] is True
     assert generated_content["intro_text"]
     assert generated_content["questions"] == [
-        "Kakoy vibe dlya takogo vechera tebe blizhe?",
-        "S chem tebe legche nachat takoe priklyuchenie?",
+        "Какой вайб для такого вечера тебе ближе?",
+        "С чего тебе легче начать такое приключение?",
     ]
     assert generated_content["generation_log"]["used_fallback"] is True
     assert generated_content["generation_log"]["validation_error"] is not None
@@ -282,9 +282,9 @@ async def _test_runtime_service_generates_per_player_summary_on_completion(
         llm_client=LLMServiceClient(
             transport=lambda _prompt: json.dumps(
                 {
-                    "intro_text": "Runtime intro",
-                    "questions": ["Q1?", "Q2?"],
-                    "transition_text": "Runtime transition",
+                    "intro_text": "Рантайм вернул русское вступление.",
+                    "questions": ["Что тебе сразу понравилось?", "Какой темп тебе ближе?"],
+                    "transition_text": "Рантайм вернул русский переход.",
                 }
             )
         ),
@@ -345,7 +345,7 @@ async def _test_runtime_service_generates_per_player_summary_on_completion(
         == ["clinical_psychology", "compatibility_score_only", "judgmental_language"]
         for item in stored_summaries
     )
-    assert any("V realnom razgovore mozhno prodolzhit" in item.content_text for item in stored_summaries)
+    assert any("В реальном разговоре можно продолжить" in item.content_text for item in stored_summaries)
 
     completed_run = await repository.get_scenario_run(final_state.run.id)
     assert completed_run is not None
@@ -368,9 +368,9 @@ async def _test_runtime_service_completes_run_even_when_summary_generation_falls
         llm_client=LLMServiceClient(
             transport=lambda _prompt: json.dumps(
                 {
-                    "intro_text": "Runtime intro",
-                    "questions": ["Q1?", "Q2?"],
-                    "transition_text": "Runtime transition",
+                    "intro_text": "Рантайм вернул русское вступление.",
+                    "questions": ["Что тебе сразу понравилось?", "Какой темп тебе ближе?"],
+                    "transition_text": "Рантайм вернул русский переход.",
                 }
             )
         ),
