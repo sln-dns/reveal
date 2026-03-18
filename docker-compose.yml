@@ -1,0 +1,30 @@
+services:
+  app:
+    image: ${APP_IMAGE_NAME:-reveal-app}:latest
+    build:
+      context: ${APP_BUILD_CONTEXT:-https://github.com/sln-dns/reveal.git#main}
+      dockerfile: ${APP_DOCKERFILE:-Dockerfile}
+    env_file:
+      - .env
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      APP_HOST: 0.0.0.0
+      APP_PORT: 8000
+      DATABASE_URL: ${DATABASE_URL:-sqlite+aiosqlite:////data/idea_check.db}
+    ports:
+      - "${HOST_PORT:-8000}:8000"
+    volumes:
+      - reveal_data:/data
+    restart: unless-stopped
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    profiles:
+      - tunnel
+    command: tunnel --no-autoupdate --url http://app:8000
+    depends_on:
+      - app
+    restart: unless-stopped
+
+volumes:
+  reveal_data:

@@ -26,6 +26,107 @@ uv run pytest
 uv run idea-check-smoke-generate
 ```
 
+## Docker deploy
+
+The repository includes a production-oriented `Dockerfile` and `docker-compose.yml`.
+
+The compose file is set up so that a server can keep only:
+
+- `.env`
+- `docker-compose.yml`
+- optional `deploy.sh`
+
+and build directly from GitHub without a full local checkout.
+
+Default remote build context:
+
+```text
+https://github.com/sln-dns/reveal.git#main
+```
+
+Typical server `.env`:
+
+```bash
+APP_ENV=production
+HOST_PORT=8000
+DATABASE_URL=sqlite+aiosqlite:////data/idea_check.db
+AI_MODEL=your-model
+AI_PROVIDER_API_KEY=your-secret
+AI_PROVIDER_URL=https://api.vsegpt.ru/v1/chat/completions
+APP_BUILD_CONTEXT=https://github.com/sln-dns/reveal.git#main
+APP_IMAGE_NAME=reveal-app
+ENABLE_QUICK_TUNNEL=0
+```
+
+Run on the server:
+
+```bash
+sh deploy.sh
+```
+
+What this does:
+
+- rebuilds from the latest GitHub code for the configured branch/ref;
+- starts the app with `docker compose up -d`;
+- runs Alembic migrations on container startup;
+- exposes the manual test frontend on `http://YOUR_HOST:HOST_PORT/client/`;
+- optionally starts a Cloudflare Quick Tunnel if `ENABLE_QUICK_TUNNEL=1`;
+- prunes dangling images and old builder cache to keep disk usage under control.
+
+If you do not want the helper script, the equivalent command sequence is:
+
+```bash
+docker compose build --pull
+docker compose up -d --remove-orphans
+docker image prune -f
+docker builder prune -f --filter "until=168h"
+```
+
+Notes:
+
+- the SQLite database is persisted in the named volume `reveal_data`;
+- rerunning deploy rebuilds the image from GitHub and restarts the container;
+- the runtime stage in the Dockerfile is useful: it keeps the final image smaller and avoids shipping the full build toolchain into production.
+
+### Cloudflare Quick Tunnel
+
+If you want a fast public internet address for manual testing without exposing the app directly, you can run `cloudflared` in Quick Tunnel mode inside the same compose stack.
+
+Quick Tunnel does not require a token.
+
+Set this in the server `.env`:
+
+```bash
+ENABLE_QUICK_TUNNEL=1
+```
+
+Then the same deploy command:
+
+```bash
+sh deploy.sh
+```
+
+will start both:
+
+- the application container;
+- the `cloudflared` Quick Tunnel container.
+
+The tunnel publishes the app container at:
+
+```text
+http://app:8000
+```
+
+inside the Docker network, and `cloudflared` will print a public `trycloudflare.com` URL in container logs.
+
+To see the public URL after startup:
+
+```bash
+docker compose logs cloudflared
+```
+
+If `ENABLE_QUICK_TUNNEL` is not set to `1`, `deploy.sh` simply runs without the tunnel profile.
+
 ## Pair Flow API
 
 Minimal product-facing pair runtime endpoints:
