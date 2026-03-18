@@ -13,6 +13,8 @@ class ScenePromptBuilder:
         ladder = ", ".join(payload.ladder_stages)
         allowed_families = ", ".join(payload.allowed_question_families)
         forbidden_families = ", ".join(payload.forbidden_question_families)
+        allowed_formats = ", ".join(payload.allowed_answer_formats)
+        generation_rules = "\n".join(f"- {rule}" for rule in payload.question_generation_rules)
         templates = "\n".join(f"- {template}" for template in payload.question_templates)
 
         return (
@@ -39,6 +41,27 @@ class ScenePromptBuilder:
             f"Запрещённые семейства вопросов: {forbidden_families}\n"
             f"Цель перехода: {payload.transition_goal}\n"
             f"Максимальная длина ответа: {payload.max_answer_length_chars} символов\n"
+            f"Основной формат ответа: {payload.default_answer_format}\n"
+            f"Разрешённые форматы ответа: {allowed_formats}\n"
+            f"Предпочтительный стиль вопроса: {payload.preferred_question_style}\n"
+            "Каждый вопрос по умолчанию должен быть быстрым и лёгким: человек должен отвечать "
+            "почти интуитивно, без длинной рефлексии.\n"
+            f"Предпочтительное число вариантов внутри вопроса: от {payload.preferred_option_count_min} "
+            f"до {payload.preferred_option_count_max}.\n"
+            "Отдавай сильное предпочтение формату простого выбора из вариантов.\n"
+            "Каждый вопрос формулируй так, чтобы на него можно было быстро ответить выбором "
+            "из коротких вариантов прямо в тексте вопроса.\n"
+            f"В каждом вопросе оставляй возможность ответа '{payload.custom_answer_label}' "
+            "или другого короткого свободного ответа.\n"
+            "Не делай открытые вопросы форматом по умолчанию.\n"
+            "Избегай длинных историй, тяжёлой рефлексии, самоанализа и формулировок, "
+            "которые заставляют долго думать.\n"
+            "Не превращай сцену в тест, опросник или интервью.\n"
+            "Держи эмоциональную живость, игровую атмосферу и естественность.\n"
+            "Хороший паттерн вопроса: 'Что тебе ближе: вариант А, вариант Б, вариант В или свой вариант?'\n"
+            "Если нужен свободный ответ, он должен оставаться коротким и необязательным.\n"
+            "Правила генерации вопросов:\n"
+            f"{generation_rules}\n"
             f"Краткая сводка прошлых ответов: {previous_answers}\n"
             f"Контекст ветвления: {branching_context}\n"
             "Шаблоны-вдохновения для вопросов:\n"

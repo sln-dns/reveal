@@ -179,6 +179,14 @@ def _build_payload(blueprint: ScenarioBlueprint, scene: SceneDefinition) -> Scen
         product_goal=blueprint.product_goal,
         experience_principles=blueprint.experience_principles,
         max_answer_length_chars=blueprint.question_policy.max_answer_length_chars,
+        default_answer_format=blueprint.question_policy.default_answer_format,
+        allowed_answer_formats=blueprint.question_policy.allowed_answer_formats,
+        preferred_question_style=blueprint.question_policy.preferred_question_style,
+        preferred_option_count_min=blueprint.question_policy.preferred_option_count_min,
+        preferred_option_count_max=blueprint.question_policy.preferred_option_count_max,
+        allow_custom_answer_option=blueprint.question_policy.allow_custom_answer_option,
+        custom_answer_label=blueprint.question_policy.custom_answer_label,
+        question_generation_rules=blueprint.question_policy.generation_rules,
     )
 
 

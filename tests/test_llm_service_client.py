@@ -40,6 +40,8 @@ def test_llm_service_prompt_explicitly_requires_russian() -> None:
     assert "Отвечай только на русском языке." in prompt
     assert "Не смешивай русский и английский" in prompt
     assert "Все значения внутри JSON должны быть написаны по-русски." in prompt
+    assert "Отдавай сильное предпочтение формату простого выбора из вариантов." in prompt
+    assert "свой вариант" in prompt
 
 
 def test_llm_service_calls_provider_with_responses_api_payload() -> None:
@@ -173,8 +175,8 @@ def _build_payload() -> SceneGenerationPayload:
         allowed_question_families=["very_light_vibe"],
         forbidden_question_families=["self_analysis"],
         question_templates=[
-            "Какое настроение вечера тебе сейчас ближе всего?",
-            "Что помогает тебе войти в новый разговор без напряжения?",
+            "Что тебе ближе для такого вечера: лёгкий флирт, спокойный уют, немного игры или свой вариант?",
+            "С чего тебе легче начать: с шутки, с простого вопроса, с наблюдения вокруг или свой вариант?",
         ],
         question_count_target=2,
         transition_goal="Подвести игроков к более ясному направлению маршрута.",
@@ -183,4 +185,15 @@ def _build_payload() -> SceneGenerationPayload:
         product_goal="Помочь двум людям легко начать разговор.",
         experience_principles=["low_cognitive_load", "light_playful_tone"],
         max_answer_length_chars=180,
+        default_answer_format="hybrid_choice_plus_text",
+        allowed_answer_formats=["short_text", "single_choice", "hybrid_choice_plus_text"],
+        preferred_question_style="fast_choice_with_optional_custom_text",
+        preferred_option_count_min=3,
+        preferred_option_count_max=4,
+        allow_custom_answer_option=True,
+        custom_answer_label="свой вариант",
+        question_generation_rules=[
+            "По умолчанию вопрос должен провоцировать быстрый выбор, а не длинное размышление.",
+            "Предпочтительный формат: 3-4 коротких варианта прямо внутри вопроса плюс явная опция 'свой вариант'.",
+        ],
     )

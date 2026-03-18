@@ -18,6 +18,14 @@ class SceneGenerationPayload(BaseModel):
     product_goal: str
     experience_principles: list[str]
     max_answer_length_chars: int
+    default_answer_format: str
+    allowed_answer_formats: list[str]
+    preferred_question_style: str
+    preferred_option_count_min: int
+    preferred_option_count_max: int
+    allow_custom_answer_option: bool
+    custom_answer_label: str
+    question_generation_rules: list[str]
     previous_answers_summary: str | None = None
     branching_context: str | None = None
 

@@ -53,8 +53,8 @@ async def _test_runtime_service_executes_pair_flow_and_completes_run(tmp_path: P
             {
                 "intro_text": "Рантайм вернул русское вступление.",
                 "questions": [
-                    "Какой формат вечера тебе сейчас ближе?",
-                    "Что помогает тебе быстро включиться в разговор?",
+                    "Что тебе ближе для такого вечера: прогулка, бар, уютный угол или свой вариант?",
+                    "С чего тебе проще начать: с шутки, с простого вопроса, с наблюдения вокруг или свой вариант?",
                 ],
                 "transition_text": "Рантайм вернул русский переход.",
             }
@@ -99,11 +99,11 @@ async def _test_runtime_service_executes_pair_flow_and_completes_run(tmp_path: P
     assert len(started_state.active_scene.questions) == 2
     assert (
         started_state.active_scene.questions[0].prompt_text
-        == "Какой формат вечера тебе сейчас ближе?"
+        == "Что тебе ближе для такого вечера: прогулка, бар, уютный угол или свой вариант?"
     )
     assert (
         started_state.active_scene.questions[1].prompt_text
-        == "Какой формат вечера тебе сейчас ближе?"
+        == "Что тебе ближе для такого вечера: прогулка, бар, уютный угол или свой вариант?"
     )
     assert all(question.answer_text is None for question in started_state.active_scene.questions)
 
@@ -154,6 +154,14 @@ async def _test_runtime_service_executes_pair_flow_and_completes_run(tmp_path: P
     first_scene_questions = await repository.list_question_instances_for_scene(first_scene_id)
     assert all(
         question.state_payload["reveal_available"] is True
+        for question in first_scene_questions
+    )
+    assert all(
+        question.prompt_payload["answer_format"] == "hybrid_choice_plus_text"
+        for question in first_scene_questions
+    )
+    assert all(
+        question.prompt_payload["custom_answer_label"] == "свой вариант"
         for question in first_scene_questions
     )
 
@@ -259,8 +267,8 @@ async def _test_runtime_service_falls_back_when_llm_response_is_invalid(tmp_path
     assert generated_content["used_fallback"] is True
     assert generated_content["intro_text"]
     assert generated_content["questions"] == [
-        "Какой вайб для такого вечера тебе ближе?",
-        "С чего тебе легче начать такое приключение?",
+        "Какой вайб для такого вечера тебе ближе: лёгкий флирт, спокойный уют, немного игры или свой вариант?",
+        "С чего тебе легче начать такое приключение: с шутки, с простого вопроса, с наблюдения вокруг или со своего варианта?",
     ]
     assert generated_content["generation_log"]["used_fallback"] is True
     assert generated_content["generation_log"]["validation_error"] is not None

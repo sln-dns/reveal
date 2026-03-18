@@ -57,6 +57,12 @@ class QuestionPolicy(BaseModel):
     questions_per_scene_min: int = Field(ge=1)
     questions_per_scene_max: int = Field(ge=1)
     max_answer_length_chars: int = Field(ge=1)
+    preferred_question_style: str
+    preferred_option_count_min: int = Field(ge=2)
+    preferred_option_count_max: int = Field(ge=2)
+    allow_custom_answer_option: bool
+    custom_answer_label: str
+    generation_rules: list[str]
     llm_interpretation_during_run: str
     direct_psychological_analysis: bool
 
@@ -64,6 +70,8 @@ class QuestionPolicy(BaseModel):
     def validate_range(self) -> "QuestionPolicy":
         if self.questions_per_scene_min > self.questions_per_scene_max:
             raise ValueError("questions_per_scene_min must be less than or equal to max")
+        if self.preferred_option_count_min > self.preferred_option_count_max:
+            raise ValueError("preferred_option_count_min must be less than or equal to max")
         if self.default_answer_format not in self.allowed_answer_formats:
             raise ValueError("default_answer_format must be included in allowed_answer_formats")
         return self

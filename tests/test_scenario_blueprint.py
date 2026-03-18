@@ -23,6 +23,9 @@ def test_load_date_route_blueprint_returns_typed_domain_object() -> None:
 
     assert blueprint.scenario_type == "date_route"
     assert blueprint.question_policy.questions_per_scene_min == 2
+    assert blueprint.question_policy.default_answer_format == "hybrid_choice_plus_text"
+    assert blueprint.question_policy.preferred_question_style == "fast_choice_with_optional_custom_text"
+    assert blueprint.question_policy.custom_answer_label == "свой вариант"
     assert blueprint.branching_policy.fallback_branch_type == "neutral_third_option"
     assert blueprint.scene_flow[1].branch_outcomes.if_difference == "scene_03_compromise"
 
@@ -92,8 +95,8 @@ def test_llm_service_falls_back_when_model_returns_bad_format() -> None:
             allowed_question_families=["very_light_vibe"],
             forbidden_question_families=["self_analysis"],
             question_templates=[
-                "Какое настроение вечера тебе сейчас ближе всего?",
-                "Что помогает тебе войти в новый разговор без напряжения?",
+                "Что тебе ближе для такого вечера: лёгкий флирт, спокойный уют, немного игры или свой вариант?",
+                "С чего тебе легче начать: с шутки, с простого вопроса, с наблюдения вокруг или свой вариант?",
             ],
             question_count_target=2,
             transition_goal="Подвести игроков к более ясному направлению маршрута.",
@@ -102,13 +105,23 @@ def test_llm_service_falls_back_when_model_returns_bad_format() -> None:
             product_goal="Помочь двум людям легко начать разговор.",
             experience_principles=["low_cognitive_load", "light_playful_tone"],
             max_answer_length_chars=180,
+            default_answer_format="hybrid_choice_plus_text",
+            allowed_answer_formats=["short_text", "single_choice", "hybrid_choice_plus_text"],
+            preferred_question_style="fast_choice_with_optional_custom_text",
+            preferred_option_count_min=3,
+            preferred_option_count_max=4,
+            allow_custom_answer_option=True,
+            custom_answer_label="свой вариант",
+            question_generation_rules=[
+                "По умолчанию вопрос должен провоцировать быстрый выбор, а не длинное размышление.",
+            ],
         )
     )
 
     assert result.generation.used_fallback is True
     assert result.generation.questions == [
-        "Какое настроение вечера тебе сейчас ближе всего?",
-        "Что помогает тебе войти в новый разговор без напряжения?",
+        "Что тебе ближе для такого вечера: лёгкий флирт, спокойный уют, немного игры или свой вариант?",
+        "С чего тебе легче начать: с шутки, с простого вопроса, с наблюдения вокруг или свой вариант?",
     ]
     assert result.log.used_fallback is True
     assert result.log.validation_error is not None
