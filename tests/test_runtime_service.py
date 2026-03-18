@@ -103,7 +103,7 @@ async def _test_runtime_service_executes_pair_flow_and_completes_run(tmp_path: P
     )
     assert (
         started_state.active_scene.questions[1].prompt_text
-        == "Generated question for player two?"
+        == "Generated question for player one?"
     )
     assert all(question.answer_text is None for question in started_state.active_scene.questions)
 
@@ -268,7 +268,7 @@ async def _test_runtime_service_falls_back_when_llm_response_is_invalid(tmp_path
         started_state.active_scene.questions[0].prompt_text == generated_content["questions"][0]
     )
     assert (
-        started_state.active_scene.questions[1].prompt_text == generated_content["questions"][1]
+        started_state.active_scene.questions[1].prompt_text == generated_content["questions"][0]
     )
 
 

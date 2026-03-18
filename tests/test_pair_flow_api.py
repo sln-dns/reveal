@@ -49,6 +49,10 @@ def test_pair_flow_api_happy_path(tmp_path: Path) -> None:
         join_payload["state"]["current_scene"]["questions"][1]["participant_id"]
         == participant_b_id
     )
+    prompts = [
+        item["prompt_text"] for item in join_payload["state"]["current_scene"]["questions"]
+    ]
+    assert len(set(prompts)) == 1
 
     state_response = client.get(
         f"/pair-sessions/{session_id}/participants/{participant_a_id}/state"
@@ -59,6 +63,10 @@ def test_pair_flow_api_happy_path(tmp_path: Path) -> None:
     assert state_payload["run"]["id"] == run_id
     assert state_payload["state_kind"] == "answering"
     assert state_payload["current_scene"]["key"] == "scene_01_intro"
+    assert (
+        state_payload["current_scene"]["questions"][0]["prompt_text"]
+        == state_payload["current_scene"]["questions"][1]["prompt_text"]
+    )
 
     first_submit_response = client.post(
         f"/pair-sessions/{session_id}/participants/{participant_a_id}/answers",

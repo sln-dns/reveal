@@ -190,10 +190,7 @@ class PairScenarioRuntimeService:
             )
 
             for position, participant in enumerate(participants, start=1):
-                prompt_text = self._select_prompt(
-                    generated_scene["questions"],
-                    participant.slot,
-                )
+                prompt_text = self._select_scene_prompt(generated_scene["questions"])
                 question = await self._repository.create_question_instance(
                     scene_instance_id=scene.id,
                     participant_id=participant.id,
@@ -206,10 +203,10 @@ class PairScenarioRuntimeService:
                         "scene_key": first_scene.scene_id,
                         "participant_slot": participant.slot,
                         "question_source": "generated",
-                        "question_index": self._resolve_prompt_index(
-                            generated_scene["questions"],
-                            participant.slot,
+                        "question_index": self._resolve_scene_prompt_index(
+                            generated_scene["questions"]
                         ),
+                        "question_delivery_mode": "shared_scene_prompt",
                     },
                     delivered_at=now,
                 )
@@ -516,18 +513,15 @@ class PairScenarioRuntimeService:
                 position=position,
                 status=QuestionStatus.DELIVERED,
                 state_payload={"reveal_available": False, "participant_slot": participant.slot},
-                prompt_text=self._select_prompt(
-                    generated_scene["questions"],
-                    participant.slot,
-                ),
+                prompt_text=self._select_scene_prompt(generated_scene["questions"]),
                 prompt_payload={
                     "scene_key": next_scene_definition.scene_id,
                     "participant_slot": participant.slot,
                     "question_source": "generated",
-                    "question_index": self._resolve_prompt_index(
-                        generated_scene["questions"],
-                        participant.slot,
+                    "question_index": self._resolve_scene_prompt_index(
+                        generated_scene["questions"]
                     ),
+                    "question_delivery_mode": "shared_scene_prompt",
                 },
                 delivered_at=now,
             )
@@ -854,14 +848,15 @@ class PairScenarioRuntimeService:
             "awaiting_participant_ids": [],
         }
 
-    def _select_prompt(self, prompts: list[str], participant_slot: int) -> str | None:
+    def _select_scene_prompt(self, prompts: list[str]) -> str | None:
         if not prompts:
             return None
-        prompt_index = self._resolve_prompt_index(prompts, participant_slot)
-        return prompts[prompt_index]
+        return prompts[self._resolve_scene_prompt_index(prompts)]
 
-    def _resolve_prompt_index(self, prompts: list[str], participant_slot: int) -> int:
-        return min(participant_slot - 1, len(prompts) - 1)
+    def _resolve_scene_prompt_index(self, prompts: list[str]) -> int:
+        # MVP rule: one scene maps to one shared prompt for both participants.
+        # If generation returns multiple questions, runtime uses only the first one.
+        return 0
 
     def _find_scene_definition(
         self,
