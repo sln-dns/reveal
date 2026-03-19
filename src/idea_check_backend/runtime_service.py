@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -1007,12 +1007,16 @@ class PairScenarioRuntimeService:
         participant: SessionParticipantRecord,
         answers: list[dict[str, Any]],
     ) -> SummarySubjectContext:
-        snippets = [item["answer_text"] for item in answers if item["answer_text"]]
+        snippets = self._dedupe_preserving_order(
+            cleaned
+            for item in answers
+            if (cleaned := self._clean_summary_text(item.get("answer_text"), item.get("scene_key")))
+        )
         topics = self._extract_topics(answers)
         preference_observations = [
-            f"чаще всего возвращался к темам: {', '.join(snippets[:2])}"
+            f"в ответах несколько раз всплывали {self._join_items(snippets[:2])}"
             if len(snippets) >= 2
-            else f"отметил: {snippets[0]}"
+            else f"особенно заметно прозвучало: {snippets[0]}"
             for _ in [0]
             if snippets
         ]
@@ -1029,7 +1033,7 @@ class PairScenarioRuntimeService:
         topics: list[str] = []
         for item in answers:
             prompt_text = (item.get("prompt_text") or "").strip()
-            answer_text = (item.get("answer_text") or "").strip()
+            answer_text = self._clean_summary_text(item.get("answer_text"), item.get("scene_key"))
             if answer_text:
                 topics.append(answer_text)
             elif prompt_text:
@@ -1050,7 +1054,7 @@ class PairScenarioRuntimeService:
     def _extract_vibe_observations(self, snippets: list[str]) -> list[str]:
         if not snippets:
             return [
-                "отвечал без явных сигналов, поэтому лучше опираться на конкретные темы из вашего маршрута"
+                "контакт здесь пока лучше ловить через простые и конкретные темы из вашего разговора"
             ]
 
         lowered = " ".join(snippets).casefold()
@@ -1059,20 +1063,20 @@ class PairScenarioRuntimeService:
             token in lowered
             for token in ("каф", "коф", "чай", "тих", "спок", "прогул", "набереж")
         ):
-            observations.append("тянется к спокойному и не перегруженному формату")
+            observations.append("тянется к спокойному формату, где можно не спешить")
         if any(
             token in lowered
             for token in ("игр", "смеш", "весел", "приключ", "шут", "лёгк", "легк")
         ):
-            observations.append("отзывается на лёгкость, игру и живую динамику")
+            observations.append("оживает там, где есть игра, лёгкость и живая динамика")
         if any(
             token in lowered
             for token in ("медл", "пау", "мяг", "не спеш", "спокой")
         ):
-            observations.append("предпочитает мягкий темп разговора")
+            observations.append("скорее выбирает мягкий темп разговора")
         if not observations:
             observations.append(
-                "в ответах чувствуется конкретный, приземлённый вайб без позы и лишних украшений"
+                "в ответах чувствуется человек, который говорит через земные и понятные детали, без позы"
             )
         return observations[:2]
 
@@ -1131,26 +1135,19 @@ class PairScenarioRuntimeService:
             participant for participant in summary_context.participants if participant.id != recipient.id
         )
         subject_context = summary_context.subjects[subject.id]
-        subject_name = subject.display_name or "Ваш партнёр"
-        portrait = (
-            f"По этому маршруту у {subject_name} чаще всего звучал такой вайб: "
-            f"{self._join_items(subject_context.preference_observations or subject_context.topics or ['живые и конкретные моменты без лишней позы'])}."
-        )
-        vibe = (
-            "По ощущению здесь особенно чувствуется, что этот человек "
-            f"{self._join_items(subject_context.vibe_observations)}."
-        )
-        topics = (
-            "Если захочется продолжить уже вне игры, хорошим мостиком могут стать темы про "
-            f"{self._join_items(subject_context.topics or ['самый комфортный формат встречи', 'темп и атмосфера вечера'])}."
-        )
+        subject_name = subject.display_name or "ваш собеседник"
+        observation = self._build_summary_observation(subject_name, subject_context)
+        importance = self._build_summary_importance(subject_context)
+        topics = self._build_summary_topics(subject_context)
+        bridge = self._build_summary_bridge(subject_context)
         return {
-            "content_text": " ".join((portrait, vibe, topics)),
+            "content_text": " ".join((observation, importance, topics, bridge)),
             "used_fallback": False,
             "content_payload": {
                 "sections": {
-                    "portrait": portrait,
-                    "vibe": vibe,
+                    "observation": observation,
+                    "importance": importance,
+                    "bridge": bridge,
                     "topics": subject_context.topics,
                 }
             },
@@ -1165,24 +1162,21 @@ class PairScenarioRuntimeService:
             participant for participant in summary_context.participants if participant.id != recipient.id
         )
         subject_context = summary_context.subjects[subject.id]
-        subject_name = subject.display_name or "Ваш партнёр"
-        topics = subject_context.topics or [
-            "что ему или ей особенно нравится в формате встречи",
-            "какой темп разговора самый комфортный",
-        ]
-        text = (
-            f"После этого маршрута {subject_name} оставляет довольно живое ощущение: "
-            f"кажется, ему или ей важны конкретные вещи, в которых легко почувствовать контакт. "
-            f"Если продолжать разговор дальше, хорошей опорой могут стать темы про {self._join_items(topics)}."
-        )
+        subject_name = subject.display_name or "ваш собеседник"
+        observation = self._build_summary_observation(subject_name, subject_context, fallback=True)
+        importance = self._build_summary_importance(subject_context, fallback=True)
+        topics_sentence = self._build_summary_topics(subject_context, fallback=True)
+        bridge = self._build_summary_bridge(subject_context, fallback=True)
+        text = " ".join((observation, importance, topics_sentence, bridge))
         return {
             "content_text": text,
             "used_fallback": True,
             "content_payload": {
                 "sections": {
-                    "portrait": text,
-                    "vibe": None,
-                    "topics": topics,
+                    "observation": observation,
+                    "importance": importance,
+                    "bridge": bridge,
+                    "topics": subject_context.topics,
                 }
             },
         }
@@ -1220,6 +1214,107 @@ class PairScenarioRuntimeService:
         if len(trimmed) <= limit:
             return trimmed
         return trimmed[: limit - 3].rstrip() + "..."
+
+    def _clean_summary_text(self, value: str | None, scene_key: str | None = None) -> str:
+        trimmed = " ".join((value or "").split())
+        if not trimmed:
+            return ""
+        if scene_key:
+            scene_prefix = f"{scene_key} "
+            if trimmed.casefold().startswith(scene_prefix.casefold()):
+                trimmed = trimmed[len(scene_prefix) :].strip()
+        return trimmed
+
+    def _dedupe_preserving_order(self, items: Iterable[str]) -> list[str]:
+        unique_items: list[str] = []
+        seen: set[str] = set()
+        for item in items:
+            normalized = item.casefold()
+            if normalized in seen:
+                continue
+            seen.add(normalized)
+            unique_items.append(item)
+        return unique_items
+
+    def _build_summary_observation(
+        self,
+        subject_name: str,
+        subject_context: SummarySubjectContext,
+        *,
+        fallback: bool = False,
+    ) -> str:
+        anchors = subject_context.topics[:2] or ["спокойные и живые детали"]
+        anchor_text = self._join_items(anchors)
+        if fallback:
+            return (
+                f"После этого маршрута {subject_name} ощущается человеком, которого проще узнавать "
+                f"через {anchor_text}."
+            )
+        return (
+            f"После этого маршрута {subject_name} ощущается человеком, с которым контакт "
+            f"скорее всего появляется через {anchor_text}."
+        )
+
+    def _build_summary_importance(
+        self,
+        subject_context: SummarySubjectContext,
+        *,
+        fallback: bool = False,
+    ) -> str:
+        preference_signal = next(iter(subject_context.preference_observations), "")
+        if preference_signal:
+            if fallback:
+                return (
+                    "Похоже, здесь особенно важны не общие слова, а вполне живые и узнаваемые вещи: "
+                    f"{preference_signal}."
+                )
+            return f"Похоже, человеку правда важны такие вещи: {preference_signal}."
+        vibe = self._join_items(
+            subject_context.vibe_observations
+            or ["лучше всего раскрывается в простом и ненапряжном разговоре"]
+        )
+        if fallback:
+            return (
+                "Похоже, здесь важнее не эффектность, а ощущение, что рядом можно быть собой и "
+                f"не спешить: {vibe}."
+            )
+        return f"Похоже, этому человеку особенно важно именно это: {vibe}."
+
+    def _build_summary_topics(
+        self,
+        subject_context: SummarySubjectContext,
+        *,
+        fallback: bool = False,
+    ) -> str:
+        topics = subject_context.topics or [
+            "самый приятный формат встречи",
+            "места, где легко разговаривать",
+            "комфортный темп вечера",
+        ]
+        if fallback:
+            return f"Если продолжать разговор дальше, проще всего опереться на темы про {self._join_items(topics)}."
+        return f"Разговор дальше легко продолжить с тем про {self._join_items(topics)}."
+
+    def _build_summary_bridge(
+        self,
+        subject_context: SummarySubjectContext,
+        *,
+        fallback: bool = False,
+    ) -> str:
+        topics = subject_context.topics or [
+            "место для короткой встречи",
+            "тот самый комфортный темп вечера",
+        ]
+        first_topic = topics[0]
+        if fallback:
+            return (
+                f"В следующем сообщении можно просто зацепиться за это и спросить, что в теме "
+                f"\"{first_topic}\" отзывается сильнее всего."
+            )
+        return (
+            f"И если захочется написать уже после игры, можно просто зацепиться за это и спросить "
+            f"про {first_topic}."
+        )
 
     def _join_items(self, items: list[str]) -> str:
         cleaned = [item.strip() for item in items if item and item.strip()]

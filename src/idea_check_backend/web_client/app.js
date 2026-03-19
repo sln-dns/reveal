@@ -600,11 +600,6 @@ function renderSummary() {
 
   elements.summaryText.textContent = summary.text;
   elements.summaryMeta.innerHTML = "";
-  for (const label of [summary.tone, ...summary.focus].filter(Boolean)) {
-    const chip = document.createElement("span");
-    chip.textContent = label;
-    elements.summaryMeta.append(chip);
-  }
 }
 
 function renderDebug() {

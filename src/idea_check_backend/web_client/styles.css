@@ -239,6 +239,10 @@ button:disabled {
   gap: 10px;
 }
 
+.summary-meta:empty {
+  display: none;
+}
+
 .summary-meta span {
   padding: 8px 10px;
   border-radius: 999px;

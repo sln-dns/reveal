@@ -354,9 +354,11 @@ async def _test_runtime_service_generates_per_player_summary_on_completion(
         for item in stored_summaries
     )
     assert any(
-        "Если захочется продолжить уже вне игры" in item.content_text
+        "можно просто зацепиться за это и спросить" in item.content_text
         for item in stored_summaries
     )
+    assert all("По этому маршруту у" not in item.content_text for item in stored_summaries)
+    assert all("По ощущению здесь особенно" not in item.content_text for item in stored_summaries)
     assert all(" i " not in item.content_text for item in stored_summaries)
 
     completed_run = await repository.get_scenario_run(final_state.run.id)
@@ -426,6 +428,7 @@ async def _test_runtime_service_completes_run_even_when_summary_generation_falls
     summaries = await repository.list_run_summaries(final_state.run.id)
     assert len(summaries) == 2
     assert all(item.content_payload["used_fallback"] is True for item in summaries)
+    assert all("В следующем сообщении можно просто зацепиться" in item.content_text for item in summaries)
 
 
 async def _make_repository(db_path: Path) -> SqlAlchemyScenarioRuntimeRepository:
