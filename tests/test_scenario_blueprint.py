@@ -123,6 +123,9 @@ def test_llm_service_falls_back_when_model_returns_bad_format() -> None:
         "Что тебе ближе для такого вечера: лёгкий флирт, спокойный уют, немного игры или свой вариант?",
         "С чего тебе легче начать: с шутки, с простого вопроса, с наблюдения вокруг или свой вариант?",
     ]
+    assert "Без правильных ответов" in result.generation.intro_text
+    assert "Тон сцены:" not in result.generation.intro_text
+    assert "Дальше можно" in result.generation.transition_text
     assert result.log.used_fallback is True
     assert result.log.validation_error is not None
     assert result.log.raw_response == "not-json"

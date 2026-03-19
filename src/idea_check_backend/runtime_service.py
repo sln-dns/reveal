@@ -1133,15 +1133,15 @@ class PairScenarioRuntimeService:
         subject_context = summary_context.subjects[subject.id]
         subject_name = subject.display_name or "Ваш партнёр"
         portrait = (
-            f"По этому маршруту {subject_name} показался человеком, которому близки "
-            f"{self._join_items(subject_context.preference_observations or subject_context.topics or ['живые и конкретные ситуации'])}."
+            f"По этому маршруту у {subject_name} чаще всего звучал такой вайб: "
+            f"{self._join_items(subject_context.preference_observations or subject_context.topics or ['живые и конкретные моменты без лишней позы'])}."
         )
         vibe = (
-            "По общему ощущению видно, что этот человек "
+            "По ощущению здесь особенно чувствуется, что этот человек "
             f"{self._join_items(subject_context.vibe_observations)}."
         )
         topics = (
-            "В реальном разговоре можно продолжить с тем: "
+            "Если захочется продолжить уже вне игры, хорошим мостиком могут стать темы про "
             f"{self._join_items(subject_context.topics or ['самый комфортный формат встречи', 'темп и атмосфера вечера'])}."
         )
         return {
@@ -1171,9 +1171,9 @@ class PairScenarioRuntimeService:
             "какой темп разговора самый комфортный",
         ]
         text = (
-            f"{subject_name} оставил тёплое впечатление и дал понятные сигналы о том, "
-            f"что ему или ей близко. Без диагнозов и обобщений: лучше всего продолжить "
-            f"разговор вокруг тем {self._join_items(topics)}."
+            f"После этого маршрута {subject_name} оставляет довольно живое ощущение: "
+            f"кажется, ему или ей важны конкретные вещи, в которых легко почувствовать контакт. "
+            f"Если продолжать разговор дальше, хорошей опорой могут стать темы про {self._join_items(topics)}."
         )
         return {
             "content_text": text,
@@ -1228,5 +1228,5 @@ class PairScenarioRuntimeService:
         if len(cleaned) == 1:
             return cleaned[0]
         if len(cleaned) == 2:
-            return f"{cleaned[0]} i {cleaned[1]}"
-        return f"{', '.join(cleaned[:-1])} i {cleaned[-1]}"
+            return f"{cleaned[0]} и {cleaned[1]}"
+        return f"{', '.join(cleaned[:-1])} и {cleaned[-1]}"

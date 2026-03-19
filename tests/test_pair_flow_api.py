@@ -187,7 +187,7 @@ def test_pair_flow_api_returns_final_summary_after_run_completion(tmp_path: Path
         "conversation_topics_for_real_meeting",
     ]
     assert state_payload["final_summary"]["tone"] == "warm_observational"
-    assert "В реальном разговоре можно продолжить" in state_payload["final_summary"]["text"]
+    assert "Если захочется продолжить уже вне игры" in state_payload["final_summary"]["text"]
 
     participant_a_state = client.get(
         f"/pair-sessions/{session_id}/participants/{participant_a_id}/state"

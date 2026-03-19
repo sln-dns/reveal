@@ -353,7 +353,11 @@ async def _test_runtime_service_generates_per_player_summary_on_completion(
         == ["clinical_psychology", "compatibility_score_only", "judgmental_language"]
         for item in stored_summaries
     )
-    assert any("В реальном разговоре можно продолжить" in item.content_text for item in stored_summaries)
+    assert any(
+        "Если захочется продолжить уже вне игры" in item.content_text
+        for item in stored_summaries
+    )
+    assert all(" i " not in item.content_text for item in stored_summaries)
 
     completed_run = await repository.get_scenario_run(final_state.run.id)
     assert completed_run is not None

@@ -37,10 +37,13 @@ def test_llm_service_prompt_explicitly_requires_russian() -> None:
 
     prompt = client.build_prompt(_build_payload())
 
+    assert "не генератор сценариев и не система отчётов" in prompt
+    assert "тёплый, наблюдательный ведущий" in prompt
     assert "Отвечай только на русском языке." in prompt
     assert "Не смешивай русский и английский" in prompt
     assert "Все значения внутри JSON должны быть написаны по-русски." in prompt
     assert "Отдавай сильное предпочтение формату простого выбора из вариантов." in prompt
+    assert "Нежелательный тон:" in prompt
     assert "свой вариант" in prompt
 
 
@@ -162,6 +165,9 @@ def test_llm_service_falls_back_when_provider_returns_non_russian_content() -> N
     assert result.log.used_fallback is True
     assert result.log.validation_error is not None
     assert "written in Russian" in result.log.validation_error
+    assert "Тон сцены:" not in result.generation.intro_text
+    assert "Без правильных ответов" in result.generation.intro_text
+    assert "Дальше можно" in result.generation.transition_text
 
 
 def _build_payload() -> SceneGenerationPayload:
